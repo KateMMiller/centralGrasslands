@@ -50,22 +50,53 @@ cgr_park_list <- sort(cgr_parks1$UNIT_CODE)
 # These are the parks to include in the NPS Central Grasslands Initiative
 # But I want to include their entire boundary, so will filter by this park list
 nps_im <- nps_im1 |> filter(UNIT_CODE %in% cgr_park_list)
+nps_im$acres <- nps_im$area_m2 * 0.000247105
+
 # Creating buffered park boundaries to calculate raster statistics from
 nps_im_1km <- st_buffer(nps_im, 1000)
 nps_im_10km <- st_buffer(nps_im, 10000)
 
-View(cgr_ras)
+nps_imv <- vect(nps_im)
 
-cgr_stats_bound <- extract(cgr_ras, nps_im, na.rm = T, exact = T)
-cgr_stats_1km <- extract(cgr_ras, nps_im_1km, na.rm = T, exact = T)
-cgr_stats_10km <- extract(cgr_ras, nps_im_10km, na.rm = T, exact = T)
+# cgr_ext_park <- crop(cgr_ras, nps_im, snap = 'in', mask = T)
+# writeRaster(cgr_ext_park, "./data/GIS/CGR_GAM_V2_park_extract.tif")
+# cgr_ext_park1km <- crop(cgr_ras, nps_im_1km, snap = 'in', mask = T)
+# writeRaster(cgr_ext_park1km, "./data/GIS/CGR_GAM_V2_park1km_extract.tif")
+# cgr_ext_park10km <- crop(cgr_ras, nps_im_10km, snap = 'in', mask = T)
+# writeRaster(cgr_ext_park10km, "./data/GIS/CGR_GAM_V2_park10km_extract.tif")
 
-# exact = T extracts fraction of cell covered if partially cut by park boundary.
+cgr_ext_park <- rast("./data/GIS/CGR_GAM_V2_park_extract.tif")
+cgr_ext_park[[1]]$Category <- c("No Data", "Core Grassland", "Desert/Shrub",
+                                "Vulnerable Grasslands",
+                                "Converted/Altered Grasslands",
+                                "Forest", "Developed", "Water")
+levels(cgr_ext_park)
+#cgr_ext_park1km <- rast("./data/GIS/CGR_GAM_V2_park1km_extract.tif")
+#cgr_ext_park10km <- rast("./data/GIS/CGR_GAM_V2_park10km_extract.tif")
 
-#tm_shape(imd, bbox = cgr_shp) + tm_borders() +
-#tm_raster(cgr_ras)
-#+
-View(cgr_ras$CGR_GAM_V2)
+nps_im$ID <- 1:nrow(nps_im)
+
+cgr_ext_park2 <- merge(cgr_ext_park, nps_im, by = "ID")
+
+cats <- data.frame(ID = c(0 5, 7, 100, 500, 1000, 2000, 5000),
+                   Category = c("No Data", "Core Grassland", "Desert/Shrub",
+                                "Vulnerable Grasslands",
+                                "Converted/Altered Grasslands",
+                                "Forest", "Developed", "Water"))
+
+head(cgr_ext_park2)
+
+table(cgr_park_ext$ID)
+
+hist(cgr_ext_park)
+
+cgr_park_ext <- extract(cgr_ext_park, nps_im, na.rm = T, exact = T)
+head(cgr_park_ext)
+
+cgr_park_ext$park <- nps_im$UNIT_CODE
+
+plot(cgr_ext_park)
+cgr_ext_park
 tm_shape(nps_im |> filter(NETCODE == "NGPN")) + tm_polygons(col = 'red') +
   tm_shape(nps_im_1km) + tm_borders(col = 'blue') +
   tm_shape(nps_im_10km) + tm_borders(col = 'black') +
