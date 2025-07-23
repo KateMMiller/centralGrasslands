@@ -54,9 +54,11 @@ nps_im <- nps_im1 |> filter(UNIT_CODE %in% cgr_park_list)
 nps_im_1km <- st_buffer(nps_im, 1000)
 nps_im_10km <- st_buffer(nps_im, 10000)
 
-cgr_stats_bound <- extract(cgr_ras, nps_im, na.rm = T, fun = sum, exact = T)
-cgr_stats_1km <- extract(cgr_ras, nps_im_1km, na.rm = T, fun = freq(cgr_ras), exact = T)
-cgr_stats_10km <- extract(cgr_ras, nps_im_10km, na.rm = T, fun = freq(cgr_ras), exact = T)
+View(cgr_ras)
+
+cgr_stats_bound <- extract(cgr_ras, nps_im, na.rm = T, exact = T)
+cgr_stats_1km <- extract(cgr_ras, nps_im_1km, na.rm = T, exact = T)
+cgr_stats_10km <- extract(cgr_ras, nps_im_10km, na.rm = T, exact = T)
 
 # exact = T extracts fraction of cell covered if partially cut by park boundary.
 
