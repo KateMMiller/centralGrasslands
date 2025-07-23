@@ -32,44 +32,28 @@ cats <- data.frame(ID = c(0, 5, 7, 100, 500, 1000, 2000, 5000),
 
 park_ext2 <- left_join(park_ext_df, nps_im, by = "ID")
 head(park_ext2)
-park_ext3 <- left_join(park_ext2, cats, by = c("Category" = "ID"))
+park_ext3 <- full_join(park_ext2, cats, by = c("Category" = "ID"))
 head(park_ext3)
 
 park_ext4 <- park_ext3 |> group_by(ID, Habitat, UNIT_CODE, NETCODE) |>
-  summarize(num_cells = n())
+  summarize(num_cells = n(), .groups = 'drop')
 
-park_ext4
+nps_im_df <- as.data.frame(st_drop_geometry(nps_im))
+head(nps_im_df)
+park_ext5 <- left_join(park_ext4, nps_im_df[,c("UNIT_CODE", "acres")], by = "UNIT_CODE") |> data.frame()
+head(park_ext5)
 
+park_ext6 <- park_ext5 |> dplyr::select(-ID) |>
+  pivot_wider(names_from = Habitat, values_from = num_cells, values_fill = 0) |>
+  pivot_longer(cols = 4:11, names_to = "Habitat", values_to = "num_cells")
+
+park_ext7 <- park_ext6 |> group_by(UNIT_CODE, NETCODE, acres) |>
+  mutate(total_cells = sum(num_cells, na.rm = T),
+         prop_hab = (num_cells/total_cells)*100,
+         acres_hab = (prop_hab/100) * acres) |>
+  arrange(UNIT_CODE, Habitat)
+
+write.csv(park_ext7, "./data/CGR_parks_prop_habitat.csv")
 #cgr_ext_park1km <- rast("./data/GIS/CGR_GAM_V2_park1km_extract.tif")
 #cgr_ext_park10km <- rast("./data/GIS/CGR_GAM_V2_park10km_extract.tif")
-
-nps_im$ID <- 1:nrow(nps_im)
-
-
-
-head(cgr_ext_park2)
-
-table(cgr_park_ext$ID)
-
-hist(cgr_ext_park)
-
-cgr_park_ext <- extract(cgr_ext_park, nps_im, na.rm = T, exact = T)
-head(cgr_park_ext)
-
-cgr_park_ext$park <- nps_im$UNIT_CODE
-
-plot(cgr_ext_park)
-cgr_ext_park
-tm_shape(nps_im |> filter(NETCODE == "NGPN")) + tm_polygons(col = 'red') +
-  tm_shape(nps_im_1km) + tm_borders(col = 'blue') +
-  tm_shape(nps_im_10km) + tm_borders(col = 'black') +
-  tm_shape(cgr_shp) + tm_borders()
-
-st_write(nps_im, "./data/GIS/CGR_park_units_5070.shp")
-warnings()
-table(nps_im$NETCODE)
-table(nps_im$UNIT_CODE)
-# 28 parks
-cgr_ras$CGR_GAM_V2
-
 
