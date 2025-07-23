@@ -7,33 +7,45 @@ library(raster)
 library(tmap)
 options(scipen = 100)
 sf_use_s2(FALSE)
-cgi_parks <- st_read("./data/GIS/CGI_parks_network.shp")
+nps_im <- st_read("./data/GIS/CGI_parks_network.shp")
+nps_im$ID <- 1:nrow(nps_im)
 
-# cgr_ext_park <- crop(cgr_ras, nps_im, snap = 'in', mask = T)
-# writeRaster(cgr_ext_park, "./data/GIS/CGR_GAM_V2_park_extract.tif")
-# cgr_ext_park1km <- crop(cgr_ras, nps_im_1km, snap = 'in', mask = T)
-# writeRaster(cgr_ext_park1km, "./data/GIS/CGR_GAM_V2_park1km_extract.tif")
-# cgr_ext_park10km <- crop(cgr_ras, nps_im_10km, snap = 'in', mask = T)
-# writeRaster(cgr_ext_park10km, "./data/GIS/CGR_GAM_V2_park10km_extract.tif")
+# m2 to acres = m2/4046.863
 
 cgr_ext_park <- raster("./data/GIS/CGR_GAM_V2_park_extract.tif")
-names(cgr_ext_park@data)
+dat <- levels(cgr_ext_park)[[1]]
+dat$Category <- c("No Data", "Core Grassland", "Desert/Shrub",
+                  "Vulnerable Grasslands",
+                  "Converted/Altered Grasslands",
+                  "Forest", "Developed", "Water")
 
-head(cgr_ext_park@data$values)
+levels(cgr_ext_park)[[1]] <- dat
 
-levels(cgr_ext_park[[1]])
+park_ext <- raster::extract(cgr_ext_park, nps_im, na.rm = T, df = T, exact = T)
+park_ext_df <- as.data.frame(park_ext)
+
+cats <- data.frame(ID = c(0, 5, 7, 100, 500, 1000, 2000, 5000),
+                   Habitat = c("No Data", "Core Grassland", "Desert/Shrub",
+                               "Vulnerable Grasslands",
+                               "Converted/Altered Grasslands",
+                               "Forest", "Developed", "Water"))
+
+park_ext2 <- left_join(park_ext_df, nps_im, by = "ID")
+head(park_ext2)
+park_ext3 <- left_join(park_ext2, cats, by = c("Category" = "ID"))
+head(park_ext3)
+
+park_ext4 <- park_ext3 |> group_by(ID, Habitat, UNIT_CODE, NETCODE) |>
+  summarize(num_cells = n())
+
+park_ext4
+
 #cgr_ext_park1km <- rast("./data/GIS/CGR_GAM_V2_park1km_extract.tif")
 #cgr_ext_park10km <- rast("./data/GIS/CGR_GAM_V2_park10km_extract.tif")
 
 nps_im$ID <- 1:nrow(nps_im)
 
-cgr_ext_park2 <- merge(cgr_ext_park, nps_im, by = "ID")
 
-cats <- data.frame(ID = c(0, 5, 7, 100, 500, 1000, 2000, 5000),
-                   Category = c("No Data", "Core Grassland", "Desert/Shrub",
-                                "Vulnerable Grasslands",
-                                "Converted/Altered Grasslands",
-                                "Forest", "Developed", "Water"))
 
 head(cgr_ext_park2)
 
