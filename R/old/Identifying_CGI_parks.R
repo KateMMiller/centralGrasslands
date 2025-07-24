@@ -52,9 +52,11 @@ cgr_park_list <- sort(cgr_parks1$UNIT_CODE)
 nps_im <- nps_im1 |> filter(UNIT_CODE %in% cgr_park_list)
 nps_im$acres <- nps_im$area_m2 * 0.000247105
 
+st_write(nps_im, "./data/GIS/CGI_parks_network.shp")
+#plot(nps_im[1])
 # Creating buffered park boundaries to calculate raster statistics from
-nps_im_1km <- st_buffer(nps_im, 1000)
-nps_im_10km <- st_buffer(nps_im, 10000)
+# nps_im_1km <- st_buffer(nps_im, 1000)
+# nps_im_10km <- st_buffer(nps_im, 10000)
 
 nps_imv <- vect(nps_im)
 
@@ -70,7 +72,9 @@ cgr_ext_park[[1]]$Category <- c("No Data", "Core Grassland", "Desert/Shrub",
                                 "Vulnerable Grasslands",
                                 "Converted/Altered Grasslands",
                                 "Forest", "Developed", "Water")
-levels(cgr_ext_park)
+
+dim(cgr_ext_park[[1]])
+levels(cgr_ext_park[[1]])
 #cgr_ext_park1km <- rast("./data/GIS/CGR_GAM_V2_park1km_extract.tif")
 #cgr_ext_park10km <- rast("./data/GIS/CGR_GAM_V2_park10km_extract.tif")
 
@@ -78,7 +82,7 @@ nps_im$ID <- 1:nrow(nps_im)
 
 cgr_ext_park2 <- merge(cgr_ext_park, nps_im, by = "ID")
 
-cats <- data.frame(ID = c(0 5, 7, 100, 500, 1000, 2000, 5000),
+cats <- data.frame(ID = c(0, 5, 7, 100, 500, 1000, 2000, 5000),
                    Category = c("No Data", "Core Grassland", "Desert/Shrub",
                                 "Vulnerable Grasslands",
                                 "Converted/Altered Grasslands",

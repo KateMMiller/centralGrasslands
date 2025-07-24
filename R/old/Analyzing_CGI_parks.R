@@ -20,8 +20,10 @@ dat$Category <- c("No Data", "Core Grassland", "Desert/Shrub",
                   "Forest", "Developed", "Water")
 
 levels(cgr_ext_park)[[1]] <- dat
+#prod(res(cgr_ext_park)) #1278.99 m2
 
 park_ext <- raster::extract(cgr_ext_park, nps_im, na.rm = T, df = T, exact = T)
+
 park_ext_df <- as.data.frame(park_ext)
 
 cats <- data.frame(ID = c(0, 5, 7, 100, 500, 1000, 2000, 5000),
@@ -31,21 +33,19 @@ cats <- data.frame(ID = c(0, 5, 7, 100, 500, 1000, 2000, 5000),
                                "Forest", "Developed", "Water"))
 
 park_ext2 <- left_join(park_ext_df, nps_im, by = "ID")
-head(park_ext2)
+
 park_ext3 <- full_join(park_ext2, cats, by = c("Category" = "ID"))
-head(park_ext3)
 
 park_ext4 <- park_ext3 |> group_by(ID, Habitat, UNIT_CODE, NETCODE) |>
-  summarize(num_cells = n(), .groups = 'drop')
+  summarize(num_cells = n(), .groups = 'drop') |>
+  filter(!is.na(ID))
 
 nps_im_df <- as.data.frame(st_drop_geometry(nps_im))
-head(nps_im_df)
 park_ext5 <- left_join(park_ext4, nps_im_df[,c("UNIT_CODE", "acres")], by = "UNIT_CODE") |> data.frame()
-head(park_ext5)
 
 park_ext6 <- park_ext5 |> dplyr::select(-ID) |>
   pivot_wider(names_from = Habitat, values_from = num_cells, values_fill = 0) |>
-  pivot_longer(cols = 4:11, names_to = "Habitat", values_to = "num_cells")
+  pivot_longer(cols = 4:10, names_to = "Habitat", values_to = "num_cells")
 
 park_ext7 <- park_ext6 |> group_by(UNIT_CODE, NETCODE, acres) |>
   mutate(total_cells = sum(num_cells, na.rm = T),
