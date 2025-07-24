@@ -4,25 +4,26 @@
 library(raster)
 library(sf)
 library(tidyverse)
-library(leaflet)
 
-# nps <- st_read("./data/GIS/NPS_boundary.shp") |> st_transform(5070)
-# st_crs(nps)
-# nps$area_m2 <- st_area(nps)
-# nps$acres <- nps$area_m2/4046.863
-# total_nps_acres <- sum(nps$acres, na.rm = T) #85,244,651 total acres in NPS lands
-#
 # #-- Converting to WGS84, so works with leaflet. Only have to run once, so commenting out after complete.
-# # nps_im <- st_read("./data/GIS/CGI_parks_network.shp")
-# nps_im$area_m2 <- st_area(nps_im)
-# nps_im$acres <- nps_im$area_m2/4046.863
-# total_nps_acres_cgi <- sum(nps_im$acres, na.rm = T) #599,933.7 total acres in NPS lands
-# (total_nps_acres_cgi/total_nps_acres)*100 # = 0.7%
+nps_im <- st_read("./data/GIS/CGI_parks_network.shp")
+nps_im_wgs <- st_transform(nps_im, 4326)
+st_crs(nps_im_wgs)
+nps_im_wgs_cent <- st_centroid(nps_im_wgs)
+nps_cent_latlong <- data.frame(st_drop_geometry(nps_im_wgs_cent),
+                               long = st_coordinates(nps_im_wgs_cent)[,1],
+                               lat = st_coordinates(nps_im_wgs_cent)[,2]
+                               )
+nps_im_wgs2 <- left_join(nps_im_wgs, nps_cent_latlong[,c("UNIT_CODE", "long", "lat")],
+                       by = c("UNIT_CODE"))
 
-# nps_im_wgs <- st_transform(nps_im, 4326)
-# st_crs(nps_im_wgs)
-# st_write(nps_im_wgs, "./data/GIS/CGI_parks_network_wgs.shp", append = FALSE)
-#
+st_write(nps_im_wgs2, "./data/GIS/CGI_parks_network_wgs.shp", append = FALSE)
+
+# Convert CGR_map to shapefile for faster mapping
+cgr_ras <- stars::read_stars("./data/GIS/CGR_GAM_V2_WGS84.tif")
+cgr_shp <- st_as_sf(cgr_ras)
+st_write(cgr_shp, "./data/GIS/CGR_GAM_V2_WGS84.shp")
+
 # nps_im_1km <- st_read("./data/GIS/CGI_parks_network_1km.shp")
 # nps_im_1km_wgs <- st_transform(nps_im_1km, 4326)
 # st_crs(nps_im_1km_wgs)
@@ -68,6 +69,19 @@ vis <- read.csv('./data/NPS_Public_Use_Statistics_2024.csv')
 head(vis)
 # total visitation
 total_vis <- sum(vis$Recreation.Visits[-nrow(vis)], na.rm = T) #331,863,358
+# cgr park visitation
 cgr_vis <- sum(vis$Recreation.Visits[vis$CGI_Park == "X"], na.rm = T) #8,424,498
-(cgr_vis/total_vis)*100 #2.5 % of annual visitation
+pct_vis <- (cgr_vis/total_vis)*100 #2.5 % of annual visitation
 
+#-- CGR by land --
+nps <- st_read("./data/GIS/NPS_boundary.shp") |> st_transform(5070)
+st_crs(nps)
+nps$area_m2 <- st_area(nps)
+nps$acres <- nps$area_m2/4046.863
+total_nps_acres <- sum(nps$acres, na.rm = T) #85,244,651 total acres in NPS lands
+
+nps_im <- st_read("./data/GIS/CGI_parks_network.shp")
+nps_im$area_m2 <- st_area(nps_im)
+nps_im$acres <- nps_im$area_m2/4046.863
+total_nps_acres_cgi <- sum(nps_im$acres, na.rm = T) #599,933.7 total acres in NPS lands
+pct_nps_lands <- (total_nps_acres_cgi/total_nps_acres)*100 # = 0.7%
