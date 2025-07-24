@@ -65,11 +65,14 @@ nps_im <- nps_im1 |> filter(UNIT_CODE %in% cgr_park_list)
 nps_im$acres <- nps_im$area_m2/4046.863
 nps_im$ID <- 1:nrow(nps_im)
 
-st_write(nps_im, "./data/GIS/CGI_parks_network.shp", append = TRUE)
+st_write(nps_im, "./data/GIS/CGI_parks_network.shp", append = FALSE)
 
 # Creating buffered park boundaries to calculate raster statistics from
 nps_im_1km <- st_buffer(nps_im, 1000)
+st_write(nps_im_1km, "./data/GIS/CGI_parks_network_1km.shp", append = TRUE)
+
 nps_im_10km <- st_buffer(nps_im, 10000)
+st_write(nps_im_10km, "./data/GIS/CGI_parks_network_10km.shp", append = TRUE)
 
 # Crop rasters to park and buffered park extents for faster processing.
 #-- Only need to run once and slow, so commenting out --
