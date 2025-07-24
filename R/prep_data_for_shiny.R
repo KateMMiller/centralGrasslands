@@ -38,11 +38,21 @@ st_write(cgr_shp, "./data/GIS/CGR_GAM_V2_WGS84.shp")
 # cgr_wgs <- terra::project(cgr, crs(nps_im_wgs), threads = 20)
 # terra::writeRaster(cgr_wgs, "./data/GIS/CGR_GAM_V2_WGS84.tif")
 
+cgr_ras <- terra::rast("./data/GIS/CGR_GAM_V2_park10km_extract.tif")
+cgr_wgs <- terra::project(cgr_ras, crs(nps_im_wgs), threads = 20)
+terra::writeRaster(cgr_wgs, "./data/GIS/CGR_GAM_V2_WGS84_10km.tif")
+
+cgr_border <- st_read("./data/GIS/Grasslands_Roadmap_boundary_Aug_2021.shp")
+cgr_border_wgs <- st_transform(cgr_border, 4326)
+st_write(cgr_border_wgs, "./data/GIS/Grasslands_Roadmap_boundary_Aug_2021_WGS84.shp")
 # Load WGS 84 version of datasets
 nps_im <- st_read("./data/GIS/CGI_parks_network_wgs.shp")
 nps_im_1km <- st_read("./data/GIS/CGI_parks_network_1km_wgs.shp")
 nps_im_10km <- st_read("./data/GIS/CGI_parks_network_10km_wgs.shp")
 cgr_ras <- raster::raster("./data/GIS/CGR_GAM_V2_WGS84.tif")
+
+cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_UTM_NAD83_10km.shp") |> st_transform(4326)
+st_write(cgr_shp, "./data/GIS/CGR_GAM_V2_WGS_10km.shp")
 
 park_prop_hab <- read.csv("./data/CGR_parks_prop_habitat.csv")
 

@@ -4,6 +4,7 @@ library(htmltools)
 library(dplyr)
 library(shinyjs)
 library(htmltools)
+library(leaflet.minicharts)
 
 shiny_server <- function(session, input, output){
 
@@ -36,10 +37,10 @@ shiny_server <- function(session, input, output){
   output$CGIMap <- renderLeaflet({
     leaflet() %>%
       setView(lng = cent[,1], lat = cent[,2], zoom = 5) %>%
-      setMaxBounds(lng1 = nps_bbox$xmax*1.01,
-                   lng2 = nps_bbox$xmin*1.01,
-                   lat1 = nps_bbox$ymax*1.01,
-                   lat2 = nps_bbox$ymin*1.01) %>%
+      # setMaxBounds(lng1 = nps_bbox$xmax*1.01,
+      #              lng2 = nps_bbox$xmin*1.01,
+      #              lat1 = nps_bbox$ymax*1.01,
+      #              lat2 = nps_bbox$ymin*1.01) %>%
       addTiles(
         group = "Map",
         urlTemplate = NPSbasic) %>%
@@ -52,23 +53,69 @@ shiny_server <- function(session, input, output){
       addTiles(
         group = "NatGeo",
         urlTemplate = ESRINatGeo) %>%
-      addLegend(pal = pal, values = c(0,5,7,100,500,1000,2000,5000),
-                title = "CGR Vulnerability Assessment") %>%
-      addPolygons(data = nps_im, color = "#33CB46", fill = NA, weight = 2,
-                  group = 'NPS units') %>%
+      # addLegend(pal = pal, values = c(0,5,7,100,500,1000,2000,5000),
+      #           title = "CGR Vulnerability Assessment") %>%
+      addPolygons(data = nps_im,
+                  # lng = nps_im_df$long[nps_im_df$UNIT_CODE == input$park],
+                  # lat = nps_im_df$lat[nps_im_df$UNIT_CODE == input$park],
+                  color = "#33CB46", fill = NA, weight = 2,
+                  group = 'CG parks') %>%
+      addPolygons(data = cgr_bound, color = "dimgrey", fill = "dimgrey",
+                  opacity = 0.2,
+                  weight = 2.5, group = "CGR boundary") %>%
+      addMinicharts(
+        type = 'pie',
+        lng = park_prop_hab_wide2$long,
+        lat = park_prop_hab_wide2$lat,
+        park_prop_hab_wide2[,c("prop_Converted/Altered Grasslands",
+                              "prop_Core Grassland",
+                              "prop_Desert/Shrub",
+                              "prop_Developed",
+                              "prop_Forest",
+                              "prop_Vulnerable Grasslands",
+                              "prop_Water")],
+        colorPalette = c("#51284D", "#728946", "#EDECE6",
+                         "#E40013", "black", "#FBD82B", "#37618D"),
+        width = 2*sqrt(park_prop_hab_wide$acres/
+                       sqrt(max(park_prop_hab_wide$acres))),
+        legendPosition = "bottomright"
+        ) %>%
       addLayersControl(
         map = .,
-        baseGroups = c("Map", "Imagery", "Topo", "NatGeo"),#, "CGR_Map"),
-        options = layersControlOptions(collapsed = T))
+        baseGroups = c("Map", "Imagery", "Topo", "NatGeo"),
+        options = layersControlOptions(collapsed = F),
+        overlayGroups = c("CG parks", "CGR boundary"))
 
 
   })
+
+  # Zoom to a park; first add invisible circle markers to zoom to centroid
+  observe({
+    req(input$CGIMap_zoom)
+
+    leafletProxy("CGIMap") %>%
+      addCircleMarkers(
+        data = nps_im_df,
+        radius = 20,
+        opacity = 0,
+        fillOpacity = 0,
+        lng = nps_im_df$long,
+        lat = nps_im_df$lat,
+        layerId = nps_im_df$UNIT_CODE#,
+        #label = nps_im_df$UNIT_CODE,
+        # labelOptions = labelOptions(noHide = TRUE,
+        #                             textOnly = TRUE,
+        #                             direction = "bottom",
+        #                             textsize = "11px")
+        )
+  })
+
 
   # Set up ability to zoom to given park
   observeEvent(input$parkZoom, {
     req(input$park)
 
-    park_selected <- nps_im_df %>% filter(NETCOD == input$network)
+    park_selected <- nps_im_df[nps_im_df$UNIT_CODE == input$park,]
 
     leafletProxy('CGIMap') %>%
       clearControls() %>%
@@ -76,32 +123,29 @@ shiny_server <- function(session, input, output){
       setView(
         lng =  park_selected$long,
         lat = park_selected$lat,
+        layerId = park_selected$UNIT_CODE,
         zoom = 12)})
 
 
-  # Zoom to a park
-  # observe({
-  #   req(input$CGIMap_zoom)
-  #
-  #   leafletProxy("CGIMap") %>%
-  #     addCircleMarkers(
-  #       data = park_df,
-  #       radius = 4,
-  #       lng = park_df$long,
-  #       lat = park_df$lat,
-  #       layerId = park_df$UNIT_CODE,
-  #       label = if(input$CGIMap_zoom > 12) park_df$UNIT_NAME else UNIT_CODE,
-  #       labelOptions = labelOptions(noHide = TRUE,
-  #                                   textOnly = TRUE,
-  #                                   direction = "bottom",
-  #                                   textsize = "11px"),
-  #       fillColor = "#33CB46",
-  #       fillOpacity = 0.75,
-  #       weight = 1,
-  #       color = "DimGrey"
-  #     )
-  #
-  # })
+  # Set up zoom
+  observeEvent(input$park, {
+    req(input$park)
+
+    park_coords <- nps_im_df[nps_im_df$UNIT_CODE == input$park,]
+
+    zoom_level <- 10
+
+    updateSelectizeInput(session, 'park',
+                         choices = c("Choose a park" = "",
+                                     nps_im_df$UNIT_CODE))
+
+    leafletProxy('CGIMap') %>%
+      #clearControls() %>%
+      clearPopups() %>%
+      setView(lng = park_coords$long,
+              lat = park_coords$lat,
+              zoom = zoom_level)
+  })
 
   # Reset view of map panel
   observeEvent(input$reset_view, {
@@ -123,4 +167,5 @@ shiny_server <- function(session, input, output){
 
 
   })
+
 }
