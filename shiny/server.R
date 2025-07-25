@@ -60,11 +60,11 @@ shiny_server <- function(session, input, output){
                   # lat = nps_im_df$lat[nps_im_df$UNIT_CODE == input$park],
                   color = "#33CB46", fill = NA, weight = 2,
                   group = 'CG parks') %>%
-      # addPolygons(data = cgr_bound, color = "dimgrey", fill = "dimgrey",
-      #             opacity = 0.2,
-      #             weight = 2.5, group = "CGR boundary") %>%
+      addPolygons(data = cgr_bound, color = "dimgrey", fill = "dimgrey",
+                  opacity = 0.2,
+                  weight = 2.5, group = "CGR boundary") %>%
       # addRasterImage(cgr_ras, colors = pal) %>%
-      addLegend(pal = pal, values = values(cgr_ras)) %>%
+      # addLegend(pal = pal, values = values(cgr_ras)) %>%
       # addPolygons(data = cgr_shp,
       #             fillColor = c("#51284D", "#728946", "#EDECE6",
       #                           "#E40013", "black", "#FBD82B", "#37618D"),

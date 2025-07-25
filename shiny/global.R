@@ -41,4 +41,4 @@ park_list <- sort(unique(nps_im$UNIT_CODE))
 
 cgr_bound <- st_read("../data/GIS/Grasslands_Roadmap_boundary_Aug_2021_WGS84.shp")
 #cgr_shp <- st_read("../data/GIS/CGR_GAM_V2_10km_WGS84.shp")
-#cgr_ras <- terra::rast("../data/GIS/CGR_GAM_V2_park10km_extract.tif")
+# cgr_ras <- terra::rast("../data/GIS/CGR_GAM_V2_park10km_extract.tif")
