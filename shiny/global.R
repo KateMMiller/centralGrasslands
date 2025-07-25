@@ -22,7 +22,6 @@ nps_im_df <- data.frame(st_drop_geometry(nps_im))
 nps_im_1km <- st_read("../data/GIS/CGI_parks_network_1km_wgs.shp")
 nps_im_10km <- st_read("../data/GIS/CGI_parks_network_10km_wgs.shp")
 #cgr_ras <- raster::raster("../data/GIS/CGR_GAM_V2_WGS84.tif")
-cgr_shp <- st_read("../data/GIS/CGR_GAM_V2_UTM_NAD83_10km.shp")
 
 #cgr_shp <- st_read("../data/GIS/CGR_GAM_V2_WGS84.shp")
 park_prop_hab <- read.csv("../data/GIS/CGR_parks_prop_habitat_all.csv")
@@ -31,9 +30,14 @@ park_prop_hab_wide <- park_prop_hab |> select(UNIT_CODE:acres_hab) |>
 names(park_prop_hab_wide) <- gsub("_hab", "", names(park_prop_hab_wide))
 park_prop_hab_wide2 <- left_join(park_prop_hab_wide,
                                  nps_im_df[,c("UNIT_CODE", "long", "lat")],
-                                 by = 'UNIT_CODE')
+                                 by = 'UNIT_CODE') |>
+  mutate(pie_size1 = 2*sqrt(acres/sqrt(max(acres))),
+         pie_size = ifelse(pie_size1 < 10, 10,
+                           ifelse(pie_size1 > 35, 35, pie_size1)))
 
 network_list <- sort(unique(nps_im$NETCODE))
 park_list <- sort(unique(nps_im$UNIT_CODE))
 
 cgr_bound <- st_read("../data/GIS/Grasslands_Roadmap_boundary_Aug_2021_WGS84.shp")
+cgr_shp <- st_read("../data/GIS/CGR_GAM_V2_10km_WGS84.shp")
+cgr_ras <- terra::rast("../data/GIS/CGR_GAM_V2_park10km_extract.tif")

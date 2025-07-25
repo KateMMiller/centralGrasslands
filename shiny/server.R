@@ -60,9 +60,17 @@ shiny_server <- function(session, input, output){
                   # lat = nps_im_df$lat[nps_im_df$UNIT_CODE == input$park],
                   color = "#33CB46", fill = NA, weight = 2,
                   group = 'CG parks') %>%
-      addPolygons(data = cgr_bound, color = "dimgrey", fill = "dimgrey",
-                  opacity = 0.2,
-                  weight = 2.5, group = "CGR boundary") %>%
+      # addPolygons(data = cgr_bound, color = "dimgrey", fill = "dimgrey",
+      #             opacity = 0.2,
+      #             weight = 2.5, group = "CGR boundary") %>%
+      # addRasterImage(cgr_ras, colors = pal) %>%
+      addLegend(pal = pal, values = values(cgr_ras)) %>%
+      # addPolygons(data = cgr_shp,
+      #             fillColor = c("#51284D", "#728946", "#EDECE6",
+      #                           "#E40013", "black", "#FBD82B", "#37618D"),
+      #             color = cgr_shp$gridcode,
+      #             group = "CGR Vuln. Assmnt.") %>%
+      #hideGroup("CGR Vuln. Assmnt.") %>%
       addMinicharts(
         type = 'pie',
         lng = park_prop_hab_wide2$long,
@@ -76,8 +84,7 @@ shiny_server <- function(session, input, output){
                               "prop_Water")],
         colorPalette = c("#51284D", "#728946", "#EDECE6",
                          "#E40013", "black", "#FBD82B", "#37618D"),
-        width = 2*sqrt(park_prop_hab_wide$acres/
-                       sqrt(max(park_prop_hab_wide$acres))),
+        width = park_prop_hab_wide2$pie_size,
         legendPosition = "bottomright"
         ) %>%
       addLayersControl(
@@ -85,8 +92,6 @@ shiny_server <- function(session, input, output){
         baseGroups = c("Map", "Imagery", "Topo", "NatGeo"),
         options = layersControlOptions(collapsed = F),
         overlayGroups = c("CG parks", "CGR boundary"))
-
-
   })
 
   # Zoom to a park; first add invisible circle markers to zoom to centroid

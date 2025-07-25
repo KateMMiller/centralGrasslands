@@ -19,10 +19,11 @@ nps_im_wgs2 <- left_join(nps_im_wgs, nps_cent_latlong[,c("UNIT_CODE", "long", "l
 
 st_write(nps_im_wgs2, "./data/GIS/CGI_parks_network_wgs.shp", append = FALSE)
 
-# Convert CGR_map to shapefile for faster mapping
-cgr_ras <- stars::read_stars("./data/GIS/CGR_GAM_V2_WGS84.tif")
-cgr_shp <- st_as_sf(cgr_ras)
-st_write(cgr_shp, "./data/GIS/CGR_GAM_V2_WGS84.shp")
+# I couldn't convert the raster CGR dataset to shapefile in R- too big.
+# Instead, I did this in ArcPro for the 10km clip, then am reprojecting it here.
+cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_UTM_NAD83_10km.shp") |>
+  st_transform(4326)
+st_write(cgr_shp, "./data/GIS/CGR_GAM_V2_10km_WGS84.shp")
 
 # nps_im_1km <- st_read("./data/GIS/CGI_parks_network_1km.shp")
 # nps_im_1km_wgs <- st_transform(nps_im_1km, 4326)
@@ -38,6 +39,13 @@ st_write(cgr_shp, "./data/GIS/CGR_GAM_V2_WGS84.shp")
 # cgr_wgs <- terra::project(cgr, crs(nps_im_wgs), threads = 20)
 # terra::writeRaster(cgr_wgs, "./data/GIS/CGR_GAM_V2_WGS84.tif")
 
+library(raster)
+tile(file = "./data/GIS/CGR_GAM_V2_WGS84.tif",
+     tiles = "./data/GIS/",
+     zoom = "0:10",
+     crs = 4326)
+
+
 cgr_ras <- terra::rast("./data/GIS/CGR_GAM_V2_park10km_extract.tif")
 cgr_wgs <- terra::project(cgr_ras, crs(nps_im_wgs), threads = 20)
 terra::writeRaster(cgr_wgs, "./data/GIS/CGR_GAM_V2_WGS84_10km.tif")
@@ -49,7 +57,7 @@ st_write(cgr_border_wgs, "./data/GIS/Grasslands_Roadmap_boundary_Aug_2021_WGS84.
 nps_im <- st_read("./data/GIS/CGI_parks_network_wgs.shp")
 nps_im_1km <- st_read("./data/GIS/CGI_parks_network_1km_wgs.shp")
 nps_im_10km <- st_read("./data/GIS/CGI_parks_network_10km_wgs.shp")
-cgr_ras <- raster::raster("./data/GIS/CGR_GAM_V2_WGS84.tif")
+#cgr_ras <- raster::raster("./data/GIS/CGR_GAM_V2_WGS84.tif")
 
 cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_UTM_NAD83_10km.shp") |> st_transform(4326)
 st_write(cgr_shp, "./data/GIS/CGR_GAM_V2_WGS_10km.shp")
@@ -95,3 +103,5 @@ nps_im$area_m2 <- st_area(nps_im)
 nps_im$acres <- nps_im$area_m2/4046.863
 total_nps_acres_cgi <- sum(nps_im$acres, na.rm = T) #599,933.7 total acres in NPS lands
 pct_nps_lands <- (total_nps_acres_cgi/total_nps_acres)*100 # = 0.7%
+
+
