@@ -4,7 +4,10 @@ library(htmltools)
 library(dplyr)
 library(shinyjs)
 library(htmltools)
-library(leaflet.minicharts)
+library(htmlwidgets)
+#library(leaflet.minicharts)
+library(crosstalk)
+library(DT)
 
 shiny_server <- function(session, input, output){
 
@@ -41,18 +44,10 @@ shiny_server <- function(session, input, output){
       #              lng2 = nps_bbox$xmin*1.01,
       #              lat1 = nps_bbox$ymax*1.01,
       #              lat2 = nps_bbox$ymin*1.01) %>%
-      addTiles(
-        group = "Map",
-        urlTemplate = NPSbasic) %>%
-      addTiles(
-        group = "Imagery",
-        urlTemplate = ESRIimagery) %>%
-      addTiles(
-        group = "Topo",
-        urlTemplate = ESRItopo) %>%
-      addTiles(
-        group = "NatGeo",
-        urlTemplate = ESRINatGeo) %>%
+      addTiles(group = "Map", urlTemplate = NPSbasic) %>%
+      addTiles(group = "Imagery", urlTemplate = ESRIimagery) %>%
+      addTiles(group = "Topo", urlTemplate = ESRItopo) %>%
+      addTiles(group = "NatGeo", urlTemplate = ESRINatGeo) %>%
       # addLegend(pal = pal, values = c(0,5,7,100,500,1000,2000,5000),
       #           title = "CGR Vulnerability Assessment") %>%
       addPolygons(data = nps_im,
@@ -60,35 +55,11 @@ shiny_server <- function(session, input, output){
                   # lat = nps_im_df$lat[nps_im_df$UNIT_CODE == input$park],
                   color = "#33CB46", fill = NA, weight = 2,
                   group = 'CG parks') %>%
-      addPolygons(data = cgr_bound, color = "dimgrey", fill = "dimgrey",
+      addPolygons(data = cgr_bound, color = "#B5AF4D", fill = "#E3E3B3",
                   opacity = 0.2,
                   weight = 2.5, group = "CGR boundary") %>%
-      # addRasterImage(cgr_ras, colors = pal) %>%
-      # addLegend(pal = pal, values = values(cgr_ras)) %>%
-      # addPolygons(data = cgr_shp,
-      #             fillColor = c("#51284D", "#728946", "#EDECE6",
-      #                           "#E40013", "black", "#FBD82B", "#37618D"),
-      #             color = cgr_shp$gridcode,
-      #             group = "CGR Vuln. Assmnt.") %>%
-      #hideGroup("CGR Vuln. Assmnt.") %>%
-      addMinicharts(
-        type = 'pie',
-        lng = park_prop_hab_wide2$long,
-        lat = park_prop_hab_wide2$lat,
-        park_prop_hab_wide2[,c("prop_Converted/Altered Grasslands",
-                              "prop_Core Grassland",
-                              "prop_Desert/Shrub",
-                              "prop_Developed",
-                              "prop_Forest",
-                              "prop_Vulnerable Grasslands",
-                              "prop_Water")],
-        colorPalette = c("#51284D", "#728946", "#EDECE6",
-                         "#E40013", "black", "#FBD82B", "#37618D"),
-        width = park_prop_hab_wide2$pie_size,
-        legendPosition = "bottomright"
-        ) %>%
       addLayersControl(
-        map = .,
+        map = ., position = "bottomleft",
         baseGroups = c("Map", "Imagery", "Topo", "NatGeo"),
         options = layersControlOptions(collapsed = F),
         overlayGroups = c("CG parks", "CGR boundary"))
@@ -100,13 +71,13 @@ shiny_server <- function(session, input, output){
 
     leafletProxy("CGIMap") %>%
       addCircleMarkers(
-        data = nps_im_df,
+        data = park_prop,
         radius = 20,
         opacity = 0,
         fillOpacity = 0,
-        lng = nps_im_df$long,
-        lat = nps_im_df$lat,
-        layerId = nps_im_df$UNIT_CODE#,
+        lng = park_prop$long,
+        lat = park_prop$lat,
+        layerId = park_prop$UNIT_CODE,
         #label = nps_im_df$UNIT_CODE,
         # labelOptions = labelOptions(noHide = TRUE,
         #                             textOnly = TRUE,
@@ -120,7 +91,7 @@ shiny_server <- function(session, input, output){
   observeEvent(input$parkZoom, {
     req(input$park)
 
-    park_selected <- nps_im_df[nps_im_df$UNIT_CODE == input$park,]
+    park_selected <- park_prop[park_prop$UNIT_CODE == input$park,]
 
     leafletProxy('CGIMap') %>%
       clearControls() %>%
@@ -129,7 +100,7 @@ shiny_server <- function(session, input, output){
         lng =  park_selected$long,
         lat = park_selected$lat,
         layerId = park_selected$UNIT_CODE,
-        zoom = 12)})
+        zoom = park_selected$zoom)})
 
 
   # Set up zoom
@@ -172,5 +143,36 @@ shiny_server <- function(session, input, output){
 
 
   })
+
+  output$prop_hab_dt <-
+    renderDataTable({datatable(df_shared,
+                              class = 'cell-border stripe', rownames = FALSE,
+                              extensions = c("FixedColumns", "Buttons"),
+                              colnames = c("Park Code", "Park Name", "Network", "Total acres",
+                                           "% Core grassland", "% Vulnerable grassland",
+                                           "% Conv./alt. grassland", "% Desert/shrub",
+                                           "% Developed", "% Forest", "% Water",
+                                           "Acres core", "Acres vulnerable",
+                                           "Acres conv./alt.", "Acres desert/shrub",
+                                           "Acres forest", "Acres developed",
+                                           "Acres water", "Long", "Lat", "zoom"),
+                           options = list(
+                             initComplete = htmlwidgets::JS(
+                               "function(settings, json) {",
+                               "$('body').css({'font-size': '11px'});",
+                               "$('body').css({'font-family': 'Arial'});",
+                               "$(this.api().table().header()).css({'font-size': '11px'});",
+                               "$(this.api().table().header()).css({'font-family': 'Arial'});",
+                               "}"),
+                             pageLength = 28,
+                             autoWidth = FALSE, scrollX = '850px',
+                             scrollY = '600px', scrollCollapse = TRUE,
+                             fixedColumns = list(leftColumns = 1),
+                             dom = "Blfrtip", buttons = c('copy', 'csv', 'print'),
+                             columnDefs = list(#list(width = '200px', targets = 1),
+                               list(className = 'dt-center', targets = c(0, 2:17)))
+                             ),
+                           filter = list(position = c('top'), clear = FALSE)
+  ) %>% formatCurrency("acres",currency = "", mark = ",", digits = 1)}, server = F)
 
 }

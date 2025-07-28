@@ -6,6 +6,7 @@ library(raster)
 library(leaflet)
 library(tidyr)
 library(dplyr)
+library(crosstalk)
 
 # WGS 84 version of datasets
 nps_im <- st_read("../data/GIS/CGI_parks_network_wgs.shp")
@@ -26,18 +27,45 @@ nps_im_10km <- st_read("../data/GIS/CGI_parks_network_10km_wgs.shp")
 
 #cgr_shp <- st_read("../data/GIS/CGR_GAM_V2_WGS84.shp")
 park_prop_hab <- read.csv("../data/GIS/CGR_parks_prop_habitat_all.csv")
+round_cols <- c("acres", "prop_hab", "acres_hab", "prop_hab_1km", "acres_hab_1km", "prop_hab_10km",
+                "acres_hab_10km")
+park_prop_hab[,round_cols] <- round(park_prop_hab[,round_cols], 1)
+park_prop_hab$Habitat <- gsub("/", "_", park_prop_hab$Habitat)
+park_prop_hab$Habitat <- gsub(" ", "_", park_prop_hab$Habitat)
+
 park_prop_hab_wide <- park_prop_hab |> dplyr::select(UNIT_CODE:acres_hab) |>
   pivot_wider(names_from = Habitat, values_from = c(prop_hab, acres_hab))
 names(park_prop_hab_wide) <- gsub("_hab", "", names(park_prop_hab_wide))
 park_prop_hab_wide2 <- left_join(park_prop_hab_wide,
-                                 nps_im_df[,c("UNIT_CODE", "long", "lat")],
+                                 nps_im_df[,c("UNIT_CODE", "UNIT_NAME", "long", "lat")],
                                  by = 'UNIT_CODE') |>
   mutate(pie_size1 = 2*sqrt(acres/sqrt(max(acres))),
          pie_size = ifelse(pie_size1 < 10, 10,
-                           ifelse(pie_size1 > 35, 35, pie_size1)))
+                           ifelse(pie_size1 > 35, 35, pie_size1)),
+         zoom = case_when(acres > 100000 ~ 16,
+                          between(acres, 50000, 100000) ~ 12,
+                          between(acres, 10000, 50000) ~ 11,
+                          between(acres, 5000,10000) ~ 9,
+                          between(acres, 1000,5000) ~ 6,
+                          between(acres, 500, 1000) ~ 5,
+                          between(acres, 100, 500) ~ 3,
+                          acres < 100 ~ 2))
+
+park_prop <- park_prop_hab_wide2[,c("UNIT_CODE", "UNIT_NAME", "NETCODE", "acres",
+                                    "prop_Core_Grassland", "prop_Vulnerable_Grasslands",
+                                    "prop_Converted_Altered_Grasslands", "prop_Desert_Shrub",
+                                    "prop_Forest", "prop_Developed", "prop_Water",
+                                    "acres_Core_Grassland", "acres_Vulnerable_Grasslands",
+                                    "acres_Converted_Altered_Grasslands", "acres_Desert_Shrub",
+                                    "acres_Forest", "acres_Developed", "acres_Water",
+                                    "long", "lat", "zoom")]
+
 
 network_list <- sort(unique(nps_im$NETCODE))
 park_list <- sort(unique(nps_im$UNIT_CODE))
+
+# Crosstalk code
+df_shared <- SharedData$new(park_prop)
 
 cgr_bound <- st_read("../data/GIS/Grasslands_Roadmap_boundary_Aug_2021_WGS84.shp")
 #cgr_shp <- st_read("../data/GIS/CGR_GAM_V2_10km_WGS84.shp")

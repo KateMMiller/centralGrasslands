@@ -1,0 +1,180 @@
+---
+output: 
+  html_document:
+    css: www/styles.css
+    includes: 
+      in_header: "www/header_manual.html"
+---
+
+```{r echo = F, include = F}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+options(knitr.kable.NA = '')
+```
+
+```{r warning = F, message = F, include = F}
+library(tidyverse)
+library(leaflet)
+library(leaflet.extras)
+library(sf)
+library(DT)
+library(crosstalk)
+library(htmltools)
+
+# WGS 84 version of datasets
+nps_im <- st_read("./data/GIS/CGI_parks_network_wgs.shp")
+nps_bbox <- data.frame(xmin = -113.16628, ymin = 29.38215,
+                       xmax = -95.35811, ymax = 47.85992)
+cent <- data.frame(long = -104.2622, lat = 38.62103)
+nps_bbox <- data.frame(xmin = -113.16628, ymin = 29.38215,
+                       xmax = -95.35811, ymax = 47.85992)
+
+nps_im_df <- data.frame(st_drop_geometry(nps_im))
+
+# GCR vulnerability assessment as shapefiles
+nps_im_1km <- st_read("./data/GIS/CGI_parks_network_1km_wgs.shp")
+nps_im_10km <- st_read("./data/GIS/CGI_parks_network_10km_wgs.shp")
+cgr_bound <- st_read("./data/GIS/Grasslands_Roadmap_boundary_Aug_2021_WGS84.shp")
+#cgr_ras <- raster::raster("../data/GIS/CGR_GAM_V2_WGS84.tif")
+
+network_list <- sort(unique(nps_im$NETCODE))
+park_list <- sort(unique(nps_im$UNIT_CODE))
+
+# Proportion of habitats by park
+park_prop_hab <- read.csv("./data/GIS/CGR_parks_prop_habitat_all.csv")
+round_cols <- c("acres", "prop_hab", "acres_hab", "prop_hab_1km", "acres_hab_1km", "prop_hab_10km",
+                "acres_hab_10km")
+park_prop_hab[,round_cols] <- round(park_prop_hab[,round_cols], 1)
+park_prop_hab$Habitat <- gsub("/", "_", park_prop_hab$Habitat)
+park_prop_hab$Habitat <- gsub(" ", "_", park_prop_hab$Habitat)
+
+park_prop_hab_wide <- park_prop_hab |> dplyr::select(UNIT_CODE:acres_hab) |>
+  pivot_wider(names_from = Habitat, values_from = c(prop_hab, acres_hab))
+names(park_prop_hab_wide) <- gsub("_hab", "", names(park_prop_hab_wide))
+park_prop_hab_wide2 <- left_join(park_prop_hab_wide,
+                                 nps_im_df[,c("UNIT_CODE", "UNIT_NAME", "long", "lat")],
+                                 by = 'UNIT_CODE') |>
+  # mutate(pie_size1 = round(2*sqrt(acres/sqrt(max(acres))), 2),
+  #        pie_size = ifelse(pie_size1 < 10, 10,
+  #                          ifelse(pie_size1 > 35, 35, pie_size1))) |> 
+  data.frame()
+
+park_prop <- park_prop_hab_wide2[,c("UNIT_CODE", "UNIT_NAME", "NETCODE", "acres",
+                                    "prop_Core_Grassland", "prop_Vulnerable_Grasslands",
+                                    "prop_Converted_Altered_Grasslands", "prop_Desert_Shrub",
+                                    "prop_Forest", "prop_Developed", "prop_Water",
+                                    "acres_Core_Grassland", "acres_Vulnerable_Grasslands",
+                                    "acres_Converted_Altered_Grasslands", "acres_Desert_Shrub",
+                                    "acres_Forest", "acres_Developed", "acres_Water", 
+                                    "long", "lat")]
+
+# Crosstalk code
+df_shared <- SharedData$new(park_prop)
+
+prop_hab_dt <- datatable(df_shared,
+                         class = 'cell-border stripe', rownames = FALSE,
+                         extensions = c("FixedColumns", "Buttons"),
+                         colnames = c("Park Code", "Park Name", "Network", "Total acres",
+                                      "% Core grassland",
+                                      "% Vulnerable grassland",
+                                      "% Conv./alt. grassland",
+                                      "% Desert/shrub",
+                                      "% Developed",
+                                      "% Forest",
+                                      "% Water",
+                                      "Acres core",
+                                      "Acres vulnerable",
+                                      "Acres conv./alt.",
+                                      "Acres desert/shrub",
+                                      "Acres forest",
+                                      "Acres developed",
+                                      "Acres water",
+                                      "Long", "Lat"),
+                         options = list(
+                           pageLength = 28,
+                           autoWidth = FALSE, scrollX = '850px',
+                           scrollY = '600px', scrollCollapse = TRUE,
+                           fixedColumns = list(leftColumns = 1),
+                           dom = "Blfrtip", buttons = c('copy', 'csv', 'print'),
+                           columnDefs = list(#list(width = '200px', targets = 1),
+                                             list(className = 'dt-center', targets = c(0, 2:17)))
+                           ),
+                           filter = list(position = c('top'), clear = FALSE)
+                        )
+
+
+
+```
+
+## {.tabset .tabset-pills}
+
+### Central Grassland Parks
+```{r warning = F, message = F}
+    # maptiles  
+    NPSbasic <- "https://atlas-stg.geoplatform.gov/styles/v1/atlas-user/ck58pyquo009v01p99xebegr9/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiYXRsYXMtdXNlciIsImEiOiJjazFmdGx2bjQwMDAwMG5wZmYwbmJwbmE2In0.lWXK2UexpXuyVitesLdwUg"
+    ESRIimagery <- "http://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    ESRItopo <- "http://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+    ESRINatGeo <- "http://services.arcgisonline.com/arcgis/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}"
+
+  CGI_map <- 
+    leaflet(data = df_shared,
+      height = 700, width = 850) %>%
+    setView(lng = cent[,1], lat = cent[,2], zoom = 5) %>%
+      # set default map view
+      # if(is.null(df_shared$selection())){
+      #   setView(lng = cent[,1], lat = cent[,2], zoom = 5)
+      # } else {
+      #   setView( 
+      #   lng = mean(df_shared$data(withSelection = F, withFilter = T)$long),
+      #         lat = mean(df_shared$data(withSelection = F, withFilter = T)$lat), 
+      #         zoom = 5)
+      #   } %>%
+      #setView(lng = cent[,1], lat = cent[,2], zoom = 5) %>%
+      #setView(lng = df_shared$data()$long, lat = df_shared$data()$lat, zoom = 12) %>%
+      # add map tiles in background
+      addTiles(group = "Map", urlTemplate = NPSbasic) %>%
+      addTiles(group = "Imagery", urlTemplate = ESRIimagery) %>%
+      addTiles(group = "Topo", urlTemplate = ESRItopo) %>%
+      addTiles(group = "NatGeo", urlTemplate = ESRINatGeo) %>%
+      addScaleBar("bottomleft") %>%
+      # add nps boundaries
+      addPolygons(data = nps_im,
+                 # lng = nps_im_df$long[nps_im_df$UNIT_CODE == input$park],
+                 # lat = nps_im_df$lat[nps_im_df$UNIT_CODE == input$park],
+                 color = "#33CB46", fill = NA, weight = 2,
+                 group = 'CG parks') %>%
+      addPolygons(data = cgr_bound, color = "#B5AF4D", fill = "#E3E3B3",
+                  opacity = 0.8, weight = 2.5, group = "CGR boundary") %>%
+      addCircleMarkers(data = df_shared, 
+                       radius = 10, color = '#33CB46', fillOpacity = 0.5) %>%
+      addLayersControl(
+        map = .,
+        baseGroups = c("Map", "Imagery", "Topo", "NatGeo"),
+        options = layersControlOptions(collapsed = F),
+        overlayGroups = c("CG parks", "CGR boundary")) %>%
+      # fitBounds(lng1 = max(df_shared$data(withSelection = TRUE, withFilter = TRUE)$long),
+      #           lat1 = max(df_shared$data(withSelection = TRUE, withFilter = TRUE)$lat),
+      #           lng2 = min(df_shared$data(withSelection = TRUE, withFilter = TRUE)$long),
+      #           lat2 = min(df_shared$data(withSelection = TRUE, withFilter = TRUE)$lat)) %>%
+      addResetMapButton(map = .)
+
+
+
+
+```
+
+```{r eval= T}
+tags$div(class='well well-lg',
+         tagList(
+           tags$h2("Interactive Park Map"),
+           CGI_map,
+           br(),
+           prop_hab_dt
+         )
+
+)
+```
+
+```{r eval=F}
+prop_hab_dt
+```
+

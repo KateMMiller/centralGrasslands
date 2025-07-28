@@ -1,5 +1,6 @@
 library(shiny)
 library(leaflet)
+library(DT)
 
 ui <- shinyUI(
   # Banner at the top
@@ -31,11 +32,11 @@ ui <- shinyUI(
                             ".selectize-input{font-size: 12px;}
                                .selectize-dropdown{font-size: 12px;}"),
 
-                 tags$div(title = 'Zoom to a network',
+                 tags$div(title = 'Filter by network',
                           style = 'padding:5px 1px 1px 3px',
                           selectizeInput(
                             inputId = 'network',
-                            label = h5('Zoom to a network:'),
+                            label = h5('Filter by network:'),
                             choices = c("Choose a network" = "",
                                         "CHDN", "GULN", "HTLN", "NGPN",
                                         "ROMN", "SCPN", "SODN", "SOPN"),
@@ -60,11 +61,17 @@ ui <- shinyUI(
                                      border-color:#436e70;font-size:11px;width:90px"))
       ),
 
-      column(10, style = "padding: 1px 20px 10px 5px",
+      column(5, style = "padding: 10px 5px 5px 5px",
              tags$div(title = "Map of Central Grassland parks",
                       div(leafletOutput("CGIMap",
-                                        height = "600px")
+                                        height = "775px",
+                                        width = "95%")
                       ))),
+      column(5, style = "padding: 10px 5px 5px 5px",
+             tags$div(title = "Table of Central Grassland parks",
+                      div(dataTableOutput("prop_hab_dt",
+                                          height = "600px",
+                                          width = "90%")))),
       br()
     ) # end fluidRow
 
