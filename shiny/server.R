@@ -60,7 +60,7 @@ shiny_server <- function(session, input, output){
       addTiles(group = "Imagery", urlTemplate = ESRIimagery) %>%
       addTiles(group = "Topo", urlTemplate = ESRItopo) %>%
       addTiles(group = "NatGeo", urlTemplate = ESRINatGeo) %>%
-      addPolygons(data = nps_im,
+      addPolygons(data = nps_im, layerId = nps_im$UNIT_CO,
                   # lng = nps_im_df$long[nps_im_df$UNIT_CODE == input$park],
                   # lat = nps_im_df$lat[nps_im_df$UNIT_CODE == input$park],
                   color = "#33CB46", fill = NA, weight = 2,
@@ -158,6 +158,27 @@ shiny_server <- function(session, input, output){
       clearControls() %>%
       setView(lng = cent[,1], lat = cent[,2], zoom = 5)
 
+
+  })
+
+  observeEvent(input$CGIMap_click, {
+    point_click <- input$CGIMap_click
+    point.sf <- st_as_sf(data.frame(lng = point_click$lng, lat = point_click$lat),
+                         coords = c("lng", "lat"), crs = 4326)
+    nps_filt <- st_filter(nps_im, point.sf)
+    content <-
+    if(nrow(nps_filt) == 0){paste0("No park selected")
+      } else {paste0("Park Code: ", nps_filt$UNIT_CO, "<br>",
+                     "Park Name: ", nps_filt$UNIT_NA, "<br>",
+                     "Network: ", nps_filt$NETCODE, "<br>",
+                     "Total Acres: ", round(nps_filt$acres,1), "<br>")
+      }
+
+    print(content)
+    leafletProxy("CGIMap") %>%
+      addPopups(lat = point_click$lat,
+                lng = point_click$lng,
+                popup = content)
 
   })
 
