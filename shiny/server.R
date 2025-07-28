@@ -6,10 +6,23 @@ library(shinyjs)
 library(htmltools)
 library(htmlwidgets)
 #library(leaflet.minicharts)
-library(crosstalk)
+#library(crosstalk)
 library(DT)
 
 shiny_server <- function(session, input, output){
+
+  # park_react <- reactive({
+  #   #req(input$park, input$network)
+  #  if(input$network == "" & input$park == ""){park_prop
+  #   } else if(!input$park == ""){park_prop[park_prop$UNIT_CODE %in% input$park,]
+  #   } else if(!input$network == ""){park_prop[park_prop$NETCODE %in% input$network,]
+  #   }
+  # })
+#
+#   park_shp_react <- reactive({
+#     req(input$park)
+#     cgr_shp |> filter(UNIT_CODE == input$park)
+#   })
 
   observeEvent(input$view_about, {
     showModal(modalDialog(
@@ -39,17 +52,14 @@ shiny_server <- function(session, input, output){
 
   output$CGIMap <- renderLeaflet({
     leaflet() %>%
-      setView(lng = cent[,1], lat = cent[,2], zoom = 5) %>%
-      # setMaxBounds(lng1 = nps_bbox$xmax*1.01,
-      #              lng2 = nps_bbox$xmin*1.01,
-      #              lat1 = nps_bbox$ymax*1.01,
-      #              lat2 = nps_bbox$ymin*1.01) %>%
+      # setView(lng = if(is.null(input$park)){cent[,1]} else {park_df()$long},
+      #         lat =  if(is.null(input$park)){cent[,2]} else {park_df()$lat},
+      #         zoom =  if(is.null(input$park)){5} else {park_df()$zoom}) %>%
+      setView(cent[,1], cent[,2], zoom = 5) %>%
       addTiles(group = "Map", urlTemplate = NPSbasic) %>%
       addTiles(group = "Imagery", urlTemplate = ESRIimagery) %>%
       addTiles(group = "Topo", urlTemplate = ESRItopo) %>%
       addTiles(group = "NatGeo", urlTemplate = ESRINatGeo) %>%
-      # addLegend(pal = pal, values = c(0,5,7,100,500,1000,2000,5000),
-      #           title = "CGR Vulnerability Assessment") %>%
       addPolygons(data = nps_im,
                   # lng = nps_im_df$long[nps_im_df$UNIT_CODE == input$park],
                   # lat = nps_im_df$lat[nps_im_df$UNIT_CODE == input$park],
@@ -58,7 +68,13 @@ shiny_server <- function(session, input, output){
       addPolygons(data = cgr_bound, color = "#B5AF4D", fill = "#E3E3B3",
                   opacity = 0.2,
                   weight = 2.5, group = "CGR boundary") %>%
-      addLayersControl(
+      # addPolygons(data = park_shp_react(),
+      #             fillColor = c("#51284D", "#728946", "#EDECE6",
+      #                           "#E40013", "black", "#FBD82B", "#37618D"),
+      #             color = park_shp_react()$gridcode,
+      #             group = "CGR Vuln. Assmnt."
+      # )
+     addLayersControl(
         map = ., position = "bottomleft",
         baseGroups = c("Map", "Imagery", "Topo", "NatGeo"),
         options = layersControlOptions(collapsed = F),
@@ -72,12 +88,12 @@ shiny_server <- function(session, input, output){
     leafletProxy("CGIMap") %>%
       addCircleMarkers(
         data = park_prop,
-        radius = 20,
+        radius = 0,
         opacity = 0,
         fillOpacity = 0,
         lng = park_prop$long,
         lat = park_prop$lat,
-        layerId = park_prop$UNIT_CODE,
+        layerId = park_prop$UNIT_CODE
         #label = nps_im_df$UNIT_CODE,
         # labelOptions = labelOptions(noHide = TRUE,
         #                             textOnly = TRUE,
@@ -102,7 +118,6 @@ shiny_server <- function(session, input, output){
         layerId = park_selected$UNIT_CODE,
         zoom = park_selected$zoom)})
 
-
   # Set up zoom
   observeEvent(input$park, {
     req(input$park)
@@ -113,7 +128,7 @@ shiny_server <- function(session, input, output){
 
     updateSelectizeInput(session, 'park',
                          choices = c("Choose a park" = "",
-                                     nps_im_df$UNIT_CODE))
+                                     sort(nps_im_df$UNIT_CODE)))
 
     leafletProxy('CGIMap') %>%
       #clearControls() %>%
@@ -121,6 +136,8 @@ shiny_server <- function(session, input, output){
       setView(lng = park_coords$long,
               lat = park_coords$lat,
               zoom = zoom_level)
+
+
   })
 
   # Reset view of map panel
@@ -128,13 +145,13 @@ shiny_server <- function(session, input, output){
     reset("parkZoom")
 
     updateSelectizeInput(session, 'network',
-                         choices = c("Choose a network" = "ALL",
+                         choices = c("Choose a network" = "",
                                      "CHDN", "GULN", "HTLN", "NGPN",
                                      "ROMN", "SCPN", "SODN", "SOPN"))
 
     updateSelectizeInput(session, 'park',
                          choices = c("Choose a park" = "",
-                                     c(park_list)))
+                                     c(sort(park_list))))
 
     leafletProxy("CGIMap") %>%
       clearPopups() %>%
@@ -145,19 +162,22 @@ shiny_server <- function(session, input, output){
   })
 
   output$prop_hab_dt <-
-    renderDataTable({datatable(df_shared,
-                              class = 'cell-border stripe', rownames = FALSE,
-                              extensions = c("FixedColumns", "Buttons"),
-                              colnames = c("Park Code", "Park Name", "Network", "Total acres",
-                                           "% Core grassland", "% Vulnerable grassland",
-                                           "% Conv./alt. grassland", "% Desert/shrub",
-                                           "% Developed", "% Forest", "% Water",
-                                           "Acres core", "Acres vulnerable",
-                                           "Acres conv./alt.", "Acres desert/shrub",
-                                           "Acres forest", "Acres developed",
-                                           "Acres water", "Long", "Lat", "zoom"),
-                           options = list(
-                             initComplete = htmlwidgets::JS(
+    renderDataTable({
+      datatable(park_prop2,
+                class = 'cell-border stripe', rownames = FALSE,
+                extensions = c("FixedColumns", "Buttons"),
+                colnames = c("Park Code", #"Park Name",
+                             "Network", "Total acres",
+                             "% Core grassland", "% Vulnerable grassland",
+                             "% Conv./alt. grassland", "% Desert/shrub",
+                             "% Developed", "% Forest", "% Water",
+                             "Acres core", "Acres vulnerable",
+                             "Acres conv./alt.", "Acres desert/shrub",
+                             "Acres forest", "Acres developed",
+                             "Acres water", "Long", "Lat"#, "zoom"
+                             ),
+               options = list(
+                              initComplete = htmlwidgets::JS(
                                "function(settings, json) {",
                                "$('body').css({'font-size': '11px'});",
                                "$('body').css({'font-family': 'Arial'});",
@@ -172,7 +192,13 @@ shiny_server <- function(session, input, output){
                              columnDefs = list(#list(width = '200px', targets = 1),
                                list(className = 'dt-center', targets = c(0, 2:17)))
                              ),
-                           filter = list(position = c('top'), clear = FALSE)
-  ) %>% formatCurrency("acres",currency = "", mark = ",", digits = 1)}, server = F)
+                           filter = list(position = c('top'), clear = FALSE)) %>%
+          formatCurrency("acres",currency = "", mark = ",", digits = 1)},
+        server = F)
+
+  # cgr_shp_park <- reactive(
+  #   if(is.null(input$park)){cgr_bound
+  #     } else {cgr_bound |> filter(UNIT_NAME == input$park)}
+  # )
 
 }

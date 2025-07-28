@@ -68,8 +68,8 @@ park_prop <- park_prop_hab_wide2[,c("UNIT_CODE", "UNIT_NAME", "NETCODE", "acres"
                                     "long", "lat", "zoom")]
 park_prop2 <- park_prop |> dplyr::select(-UNIT_NAME, -zoom)
 
-network_list <- sort(unique(nps_im$NETCODE))
-park_list <- sort(unique(nps_im$UNIT_CODE))
+network_list <- sort(unique(nps_im_df$NETCODE))
+park_list <- sort(unique(nps_im_df$UNIT_CODE))
 
 # Cross# Cross# Crosstalk code
 #df_shared <- SharedData$new(park_prop2)

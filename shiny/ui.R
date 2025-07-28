@@ -69,7 +69,7 @@ ui <- shinyUI(
                       ))),
       column(5, style = "padding: 10px 5px 5px 5px",
              tags$div(title = "Table of Central Grassland parks",
-                      div(dataTableOutput("prop_hab_dt",
+                      div(DTOutput("prop_hab_dt",
                                           height = "600px",
                                           width = "90%")))),
       br()
