@@ -4,6 +4,9 @@
 library(raster)
 library(sf)
 library(tidyverse)
+library(spatialEco)
+
+sf_use_s2(FALSE)
 
 # #-- Converting to WGS84, so works with leaflet. Only have to run once, so commenting out after complete.
 nps_im <- st_read("./data/GIS/CGI_parks_network.shp")
@@ -19,12 +22,6 @@ nps_im_wgs2 <- left_join(nps_im_wgs, nps_cent_latlong[,c("UNIT_CODE", "long", "l
 
 st_write(nps_im_wgs2, "./data/GIS/CGI_parks_network_wgs.shp", append = FALSE)
 
-# I couldn't convert the raster CGR dataset to shapefile in R- too big.
-# Instead, I did this in ArcPro for the 10km clip, then am reprojecting it here.
-cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_UTM_NAD83_10km.shp") |>
-  st_transform(4326)
-st_write(cgr_shp, "./data/GIS/CGR_GAM_V2_10km_WGS84.shp")
-
 # nps_im_1km <- st_read("./data/GIS/CGI_parks_network_1km.shp")
 # nps_im_1km_wgs <- st_transform(nps_im_1km, 4326)
 # st_crs(nps_im_1km_wgs)
@@ -39,16 +36,15 @@ st_write(cgr_shp, "./data/GIS/CGR_GAM_V2_10km_WGS84.shp")
 # cgr_wgs <- terra::project(cgr, crs(nps_im_wgs), threads = 20)
 # terra::writeRaster(cgr_wgs, "./data/GIS/CGR_GAM_V2_WGS84.tif")
 
-library(raster)
-tile(file = "./data/GIS/CGR_GAM_V2_WGS84.tif",
-     tiles = "./data/GIS/",
-     zoom = "0:10",
-     crs = 4326)
-
-
-cgr_ras <- terra::rast("./data/GIS/CGR_GAM_V2_park10km_extract.tif")
-cgr_wgs <- terra::project(cgr_ras, crs(nps_im_wgs), threads = 20)
-terra::writeRaster(cgr_wgs, "./data/GIS/CGR_GAM_V2_WGS84_10km.tif")
+# library(raster)
+# tile(file = "./data/GIS/CGR_GAM_V2_WGS84.tif",
+#      tiles = "./data/GIS/",
+#      zoom = "0:10",
+#      crs = 4326)
+#
+# cgr_ras <- terra::rast("./data/GIS/CGR_GAM_V2_park10km_extract.tif")
+# cgr_wgs <- terra::project(cgr_ras, crs(nps_im_wgs), threads = 20)
+# terra::writeRaster(cgr_wgs, "./data/GIS/CGR_GAM_V2_WGS84_10km.tif")
 
 cgr_border <- st_read("./data/GIS/Grasslands_Roadmap_boundary_Aug_2021.shp")
 cgr_border_wgs <- st_transform(cgr_border, 4326)
@@ -58,6 +54,22 @@ nps_im <- st_read("./data/GIS/CGI_parks_network_wgs.shp")
 nps_im_1km <- st_read("./data/GIS/CGI_parks_network_1km_wgs.shp")
 nps_im_10km <- st_read("./data/GIS/CGI_parks_network_10km_wgs.shp")
 #cgr_ras <- raster::raster("./data/GIS/CGR_GAM_V2_WGS84.tif")
+
+# I couldn't convert the raster CGR dataset to shapefile in R- too big.
+# Instead, I did this in ArcPro for the 10km clip, then am dissolving
+# to make smaller file, joining with nps units, then transforming to wgs84.
+#
+cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_UTM_NAD83_10km.shp")
+cgr_shp_diss <- sf_dissolve(cgr_shp, y = "gridcode")
+nps_im_10km_utm <- st_read("./data/GIS/CGI_parks_network_10km.shp")
+cgr_shp_park <- st_join(cgr_shp_diss, nps_im_10km_utm)
+cgr_shp_park2 <- st_transform(cgr_shp_park, 4326)
+st_write(cgr_shp_park2, "./data/GIS/CGR_GAM_V2_10km_WGS84_diss.shp")
+
+cgr_shp_park <- st_join(cgr_shp_diss, nps_im_10km)
+st_crs(cgr_shp_diss)
+st_crs(nps_im_10km)
+st_write(cgr_shp_park, "./data/GIS/CGR_GAM_V2_10km_WGS84_park.shp")
 
 cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_UTM_NAD83_10km.shp") |> st_transform(4326)
 st_write(cgr_shp, "./data/GIS/CGR_GAM_V2_WGS_10km.shp")
