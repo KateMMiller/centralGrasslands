@@ -17,19 +17,27 @@ options(scipen = 100)
 sf_use_s2(FALSE)
 
 #---- Part 1: Identify parks within CGR boundary ----
-# Determining parks that are within the central grassland roadmap boundary
-# Read in NPS boundary layer downloaded from IRMA on 7/22/2025
-nps <- st_read("./data/GIS/nps_boundary.shp") |> st_transform(5070) # Conus Albers NAD83
-st_crs(nps)
-nps$area_m2 <- st_area(nps)
+# # Determining parks that are within the central grassland roadmap boundary
+# # Read in NPS boundary layer downloaded from IRMA on 7/22/2025
+# nps <- st_read("./data/GIS/nps_boundary.shp") |> st_transform(5070) # Conus Albers NAD83
+# st_crs(nps)
+# nps$area_m2 <- st_area(nps)
 
 # Read in network boundaries and transform to nps
 imd <- st_read("./data/GIS/networks.shp") |> st_transform(crs = 5070)
-st_crs(nps) == st_crs(imd)
 names(imd)
 
-nps_im1 <- st_join(nps, imd) |>
-  dplyr::select(UNIT_CODE, UNIT_NAME, STATE, REGION, area_m2, NETWORK = NAME2_, NETCODE = ALPHACODE)
+# Updated park list in ArcPro, because some got left off
+nps1 <- st_read("./data/GIS/CGI_parks_64_5070.shp") # Conus Albers NAD83
+st_crs(nps1)
+nps1$area_m2 <- st_area(nps1)
+st_crs(nps1) == st_crs(imd)
+
+nps <- nps1 |> filter(!UNIT_CODE %in% c("BICA", "PECO", "JELA", "WUPA", "SAGU", "MISS"))
+
+nps_im <- st_join(nps, imd) |>
+  dplyr::select(UNIT_CODE, UNIT_NAME, STATE, REGION, area_m2, NETWORK = NAME2_, NETCODE = ALPHACODE)|>
+  filter(!(UNIT_CODE == "NEPE" & NETCODE == "ROMN"))
 
 #-- Read in central grasslands tif and shapefile and reproject to match nps.
 #-- Only need to do this once; commented out because slow and don't want to
@@ -41,27 +49,34 @@ nps_im1 <- st_join(nps, imd) |>
 
 cgr_ras <- terra::rast("./data/GIS/CGR_GAM_V2_UTM_NAD83.tif")
 
-cgr_shp <- st_read("./data/GIS/Grasslands_Roadmap_boundary_Aug_2021.shp") |>
-  st_transform(crs = 5070)
+# DIDN'T ACTUALLY USE THE CODE BELOW- had to use ArcPro
 
-# Subtract 10km from buffer
-cgr_shp_buff <- st_buffer(cgr_shp, -10000) #10km
+# cgr_shp <- st_read("./data/GIS/Grasslands_Roadmap_boundary_Aug_2021.shp") |>
+#   st_transform(crs = 5070)
+#
+# # Subtract 10km from buffer
+# cgr_shp_buff <- st_buffer(cgr_shp, -10000) #10km
+#
+# # Check the layers
+# tm_shape(cgr_shp) + tm_borders() +
+#   tm_shape(cgr_shp_buff) + tm_borders('red') #
+#
+# # Intersect the parks with the cgr buffered polygon
+# cgr_parks1 <- st_intersection(nps_im1, cgr_shp_buff)
+# sort(unique(nps_im1$UNIT_CODE))
+#
+# sort(unique(cgr_parks1$UNIT_CODE))
+# # calculate park area to see if some were partially cut
+# cgr_parks1$area_m2_int <- st_area(cgr_parks1)
+#
+# # drop parks that aren't entirely within the boundary
+# cgr_parks1 <- cgr_parks1 |> filter(!area_m2 > area_m2_int)
+# cgr_park_list <- sort(cgr_parks1$UNIT_CODE)
 
-# Check the layers
-tm_shape(cgr_shp) + tm_borders() +
-  tm_shape(cgr_shp_buff) + tm_borders('red') #
-
-# Intersect the parks with the cgr buffered polygon
-cgr_parks1 <- st_intersection(nps_im1, cgr_shp_buff)
-# calculate park area to see if some were partially cut
-cgr_parks1$area_m2_int <- st_area(cgr_parks1)
-
-# drop parks that aren't entirely within the boundary
-cgr_parks1 <- cgr_parks1 |> filter(!area_m2 > area_m2_int)
-cgr_park_list <- sort(cgr_parks1$UNIT_CODE)
 # These are the parks to include in the NPS Central Grasslands Initiative
 # But I want to include their entire boundary, so will filter by this park list
-nps_im <- nps_im1 |> filter(UNIT_CODE %in% cgr_park_list)
+#nps_im <- nps_im1 |> filter(UNIT_CODE %in% cgr_park_list)
+
 nps_im$acres <- nps_im$area_m2/4046.863
 nps_im$ID <- 1:nrow(nps_im)
 
@@ -76,17 +91,17 @@ st_write(nps_im_10km, "./data/GIS/CGI_parks_network_10km.shp", append = TRUE)
 
 # Crop rasters to park and buffered park extents for faster processing.
 #-- Only need to run once and slow, so commenting out --
-# cgr_ext_park <- crop(cgr_ras, nps_im, snap = 'in', mask = T)
-# writeRaster(cgr_ext_park, "./data/GIS/CGR_GAM_V2_park_extract.tif")
-# cgr_ext_park1km <- crop(cgr_ras, nps_im_1km, snap = 'in', mask = T)
-# writeRaster(cgr_ext_park1km, "./data/GIS/CGR_GAM_V2_park1km_extract.tif")
-# cgr_ext_park10km <- crop(cgr_ras, nps_im_10km, snap = 'in', mask = T)
-# writeRaster(cgr_ext_park10km, "./data/GIS/CGR_GAM_V2_park10km_extract.tif")
+cgr_ext_park <- crop(cgr_ras, nps_im, snap = 'in', mask = T)
+writeRaster(cgr_ext_park, "./data/GIS/CGR_GAM_V2_park_extract_5070.tif")
+cgr_ext_park1km <- crop(cgr_ras, nps_im_1km, snap = 'in', mask = T)
+writeRaster(cgr_ext_park1km, "./data/GIS/CGR_GAM_V2_park1km_extract_5070.tif")
+cgr_ext_park10km <- crop(cgr_ras, nps_im_10km, snap = 'in', mask = T)
+writeRaster(cgr_ext_park10km, "./data/GIS/CGR_GAM_V2_park10km_extract_5070.tif")
 
 #---- Part 2: Analyze habitat types by park ----
 #-- Park Boundary --
 # Switching to raster package because it worked better
-cgr_ext_park <- raster::raster("./data/GIS/CGR_GAM_V2_park_extract.tif")
+cgr_ext_park <- raster::raster("./data/GIS/CGR_GAM_V2_park_extract_5070.tif")
 dat <- levels(cgr_ext_park)[[1]]
 dat$Category <- c("No Data", "Core Grassland", "Desert/Shrub",
                   "Vulnerable Grasslands",
@@ -111,6 +126,7 @@ cats <- data.frame(ID = c(0, 5, 7, 100, 500, 1000, 2000, 5000),
 
 # join extracted cgr values with nps_im data
 park_ext2 <- left_join(park_ext_df, nps_im, by = "ID")
+head(park_ext2)
 
 # join with cgr values/habitat
 park_ext3 <- full_join(park_ext2, cats, by = c("Category" = "ID"))
@@ -121,7 +137,8 @@ park_ext4 <- park_ext3 |> group_by(ID, Habitat, UNIT_CODE, NETCODE) |>
   filter(!is.na(ID))
 
 # make nps_im a dataframe and drop geometry
-nps_im_df <- as.data.frame(st_drop_geometry(nps_im))
+nps_im_df <- as.data.frame(st_drop_geometry(nps_im)) |>
+  filter(!(UNIT_CODE == "NEPE" & NETCODE == "ROMN"))
 park_ext5 <- left_join(park_ext4, nps_im_df[,c("UNIT_CODE", "acres")], by = "UNIT_CODE") |> data.frame()
 
 # Use pivots to get all combinations of habitat types for each park
@@ -139,7 +156,7 @@ park_ext7 <- park_ext6 |> group_by(UNIT_CODE, NETCODE, acres) |>
 write.csv(park_ext7, "./data/CGR_parks_prop_habitat.csv")
 
 #-- 1km buffer around park boundary --
-cgr_ext_park_1km <- raster::raster("./data/GIS/CGR_GAM_V2_park1km_extract.tif")
+cgr_ext_park_1km <- raster::raster("./data/GIS/CGR_GAM_V2_park1km_extract_5070.tif")
 dat_1km <- levels(cgr_ext_park_1km)[[1]]
 dat_1km$Category <- c("No Data", "Core Grassland", "Desert/Shrub",
                       "Vulnerable Grasslands",
@@ -192,7 +209,7 @@ park_ext7_1km <- park_ext6_1km |> group_by(UNIT_CODE, NETCODE, acres) |>
 write.csv(park_ext7_1km, "./data/CGR_parks_prop_habitat_1km.csv")
 
 #-- 10km buffer around park boundary --
-cgr_ext_park_10km <- raster::raster("./data/GIS/CGR_GAM_V2_park10km_extract.tif")
+cgr_ext_park_10km <- raster::raster("./data/GIS/CGR_GAM_V2_park10km_extract_5070.tif")
 dat_10km <- levels(cgr_ext_park_10km)[[1]]
 dat_10km$Category <- c("No Data", "Core Grassland", "Desert/Shrub",
                       "Vulnerable Grasslands",
