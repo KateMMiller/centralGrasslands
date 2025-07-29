@@ -163,18 +163,21 @@ shiny_server <- function(session, input, output){
 
   observeEvent(input$CGIMap_click, {
     point_click <- input$CGIMap_click
-    point.sf <- st_as_sf(data.frame(lng = point_click$lng, lat = point_click$lat),
+
+    point.sf <- st_as_sf(data.frame(lng = point_click$lng,
+                                    lat = point_click$lat),
                          coords = c("lng", "lat"), crs = 4326)
+
     nps_filt <- st_filter(nps_im, point.sf)
+
     content <-
     if(nrow(nps_filt) == 0){paste0("No park selected")
-      } else {paste0("Park Code: ", nps_filt$UNIT_CO, "<br>",
-                     "Park Name: ", nps_filt$UNIT_NA, "<br>",
+      } else {paste0("Park Code: ", nps_filt$UNIT_CODE, "<br>",
+                     "Park Name: ", nps_filt$UNIT_NAME, "<br>",
                      "Network: ", nps_filt$NETCODE, "<br>",
-                     "Total Acres: ", round(nps_filt$acres,1), "<br>")
+                     "Total Acres: ", round(nps_filt$acres, 1), "<br>")
       }
 
-    print(content)
     leafletProxy("CGIMap") %>%
       addPopups(lat = point_click$lat,
                 lng = point_click$lng,
@@ -183,12 +186,12 @@ shiny_server <- function(session, input, output){
   })
 
   output$prop_hab_dt <-
-    renderDataTable({
+    renderDT({
       datatable(park_prop2,
                 class = 'cell-border stripe', rownames = FALSE,
                 extensions = c("FixedColumns", "Buttons"),
                 colnames = c("Park Code", #"Park Name",
-                             "Network", "Total acres",
+                             "Network", "Total acres", "2024 Visitation",
                              "% Core grassland", "% Vulnerable grassland",
                              "% Conv./alt. grassland", "% Desert/shrub",
                              "% Developed", "% Forest", "% Water",
@@ -205,16 +208,17 @@ shiny_server <- function(session, input, output){
                                "$(this.api().table().header()).css({'font-size': '11px'});",
                                "$(this.api().table().header()).css({'font-family': 'Arial'});",
                                "}"),
-                             pageLength = 28,
+                             pageLength = 64,
                              autoWidth = FALSE, scrollX = '850px',
                              scrollY = '600px', scrollCollapse = TRUE,
                              fixedColumns = list(leftColumns = 1),
                              dom = "Blfrtip", buttons = c('copy', 'csv', 'print'),
                              columnDefs = list(#list(width = '200px', targets = 1),
-                               list(className = 'dt-center', targets = c(0, 2:17)))
+                               list(className = 'dt-center', targets = c(0, 2:18)))
                              ),
                            filter = list(position = c('top'), clear = FALSE)) %>%
-          formatCurrency("acres",currency = "", mark = ",", digits = 1)},
+          formatCurrency("acres", currency = "", mark = ",", digits = 1) %>%
+        formatCurrency("Recreation.Visits", currency = "", mark = ",", digits = 1)},
         server = F)
 
   # cgr_shp_park <- reactive(

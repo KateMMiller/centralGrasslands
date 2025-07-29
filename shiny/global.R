@@ -9,9 +9,15 @@ library(dplyr)
 sf_use_s2(FALSE)
 #library(crosstalk)
 path = "C:/NETN/R_Dev/centralGrasslands/data/GIS/"
-
+path2 <- "C:/NETN/R_Dev/centralGrasslands/data/"
 # WGS 84 version of datasets
-nps_im <- st_read(paste0(path, "CGI_parks_network_wgs.shp"))
+nps_im1 <- st_read(paste0(path, "CGI_parks_network_wgs.shp")) |>
+  filter(!UNIT_CODE %in% c("PECO", "WUPA"))
+nps_im1$acres <- nps_im1$area_m2/4046.863
+vis <- read.csv(paste0(path2, 'NPS_Public_Use_Statistics_2024.csv'))
+nps_im <- left_join(nps_im1, vis[,c("Code", "Recreation.Visits")], by = c("UNIT_CODE" = "Code"))
+head(nps_im)
+
 #nps_bbox1 <- st_bbox(nps_im) * 1.01 # added 1% buffer
 nps_bbox <- data.frame(xmin = -113.16628, ymin = 29.38215,
                        xmax = -95.35811, ymax = 47.85992)
@@ -30,20 +36,24 @@ nps_im_10km <- st_read(paste0(path, "CGI_parks_network_10km_wgs.shp"))
 #cgr_ras <- raster::raster("./data/GIS/CGR_GAM_V2_WGS84.tif")
 
 #cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_WGS84.shp")
-park_prop_hab <- read.csv(paste0(path, "CGR_parks_prop_habitat_all.csv"))
-round_cols <- c("acres", "prop_hab", "acres_hab", "prop_hab_1km", "acres_hab_1km", "prop_hab_10km",
-                "acres_hab_10km")
+park_prop_hab <- read.csv(paste0(path, "CGR_parks_prop_habitat_all.csv")) |>
+  select(X:acres_hab) |>  # dropping 1km and 10km for now
+  filter(!UNIT_CODE %in% c("PECO", "WUPA"))
+round_cols <- c("acres", "prop_hab", "acres_hab")#, "prop_hab_1km", "acres_hab_1km", "prop_hab_10km",
+                #"acres_hab_10km")
+
 park_prop_hab[,round_cols] <- round(park_prop_hab[,round_cols], 1)
 park_prop_hab$Habitat <- gsub("/", "_", park_prop_hab$Habitat)
 park_prop_hab$Habitat <- gsub(" ", "_", park_prop_hab$Habitat)
 
 park_prop_hab_wide <- park_prop_hab |> dplyr::select(UNIT_CODE:acres_hab) |>
-  pivot_wider(names_from = Habitat, values_from = c(prop_hab, acres_hab))
+  pivot_wider(names_from = Habitat, values_from = c(prop_hab, acres_hab)) |>
+  filter(!UNIT_CODE %in% c("PECO", "WUPA"))
 names(park_prop_hab_wide) <- gsub("_hab", "", names(park_prop_hab_wide))
 head(data.frame(park_prop_hab_wide))
 
 park_prop_hab_wide2 <- left_join(park_prop_hab_wide,
-                                 nps_im_df[,c("UNIT_CODE", "UNIT_NAME", "long", "lat")],
+                                 nps_im_df[,c("UNIT_CODE", "UNIT_NAME", "long", "lat", "Recreation.Visits")],
                                  by = c('UNIT_CODE')) |>
   mutate(pie_size1 = 2*sqrt(acres/sqrt(max(acres))),
          pie_size = ifelse(pie_size1 < 10, 10,
@@ -56,9 +66,10 @@ park_prop_hab_wide2 <- left_join(park_prop_hab_wide,
                           between(acres, 500, 1000) ~ 3,
                           between(acres, 100, 500) ~ 2,
                           acres < 100 ~ 1))
+
 # names(park_prop_hab_wide2)[names(park_prop_hab_wide2) == "UNIT_NA"] <- "UNIT_NAME"
 
-park_prop <- park_prop_hab_wide2[,c("UNIT_CODE", "UNIT_NAME", "NETCODE", "acres",
+park_prop <- park_prop_hab_wide2[,c("UNIT_CODE", "UNIT_NAME", "NETCODE", "acres", "Recreation.Visits",
                                     "prop_Core_Grassland", "prop_Vulnerable_Grasslands",
                                     "prop_Converted_Altered_Grasslands", "prop_Desert_Shrub",
                                     "prop_Forest", "prop_Developed", "prop_Water",
