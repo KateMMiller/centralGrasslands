@@ -74,7 +74,8 @@ shiny_server <- function(session, input, output){
         map = ., position = "bottomleft",
         baseGroups = c("Map", "Imagery", "Topo", "NatGeo"),
         options = layersControlOptions(collapsed = F),
-        overlayGroups = c("CG parks", "CGR boundary"))
+        overlayGroups = c("CG parks", "CGR boundary")) %>%
+     addScaleBar()
   })
 
   # Zoom to a park; first add invisible circle markers to zoom to centroid
@@ -185,7 +186,7 @@ shiny_server <- function(session, input, output){
                 class = 'cell-border stripe', rownames = FALSE,
                 extensions = c("FixedColumns", "Buttons"),
                 colnames = c("Park Code", #"Park Name",
-                             "Network", "Total acres", "2024 Visitation",
+                             "Network", "Total acres", "2024 Visitation", "IMD Veg. Monitoring",
                              "% Core grassland", "% Vulnerable grassland",
                              "% Conv./alt. grassland", "% Desert/shrub",
                              "% Developed", "% Forest", "% Water",
@@ -202,16 +203,17 @@ shiny_server <- function(session, input, output){
                                "$(this.api().table().header()).css({'font-size': '11px'});",
                                "$(this.api().table().header()).css({'font-family': 'Arial'});",
                                "}"),
-                             pageLength = 64,
+                             pageLength = nrow(park_prop2),
                              autoWidth = FALSE, scrollX = '850px',
                              scrollY = '600px', scrollCollapse = TRUE,
                              fixedColumns = list(leftColumns = 1),
                              dom = "Blfrtip", buttons = c('copy', 'csv', 'print'),
                              columnDefs = list(#list(width = '200px', targets = 1),
-                               list(className = 'dt-center', targets = c(0, 2:18)))
+                               list(className = 'dt-center', targets = c(0:1, 4:19)),
+                               list(className = 'dt-right', targets = c(2:3)))
                              ),
                            filter = list(position = c('top'), clear = FALSE)) %>%
-          formatCurrency("acres", currency = "", mark = ",", digits = 1) %>%
+        formatCurrency("acres", currency = "", mark = ",", digits = 1) %>%
         formatCurrency("Recreation.Visits", currency = "", mark = ",", digits = 1)},
         server = F)
 

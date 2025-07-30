@@ -63,14 +63,36 @@ ui <- shinyUI(
 
       column(5, style = "padding: 10px 5px 5px 5px",
              tags$div(title = "Map of Central Grassland parks",
+                      div(style = "width:95%",
+                           HTML("Map of national parks within <a href='https://www.grasslandsroadmap.org/'>
+                           Central Grasslands Roadmap Boundary</a>. Zoom to an individual park by selecting
+                           a network or park in the Map Controls dropdowns. Clicking on a park will provide
+                           additional information in a popup. Click on the radio buttons in the
+                           bottom left of the map to change basemaps, and turn off layers by unchecking the
+                           layer's box in the bottom left. To reset the view, click on the Reset Map button.")),
+                      br(),
                       div(leafletOutput("CGIMap",
-                                        height = "775px",
+                                        height = "810px",
                                         width = "95%")
                       ))),
       column(5, style = "padding: 10px 5px 5px 5px",
              tags$div(title = "Table of Central Grassland parks",
+                      HTML("Table of national parks within <a href='https://www.grasslandsroadmap.org/'>
+                           Central Grasslands Roadmap Boundary</a>. Columns with % of a given habitat or acres of habitat were derived from
+                           <a href='https://www.grasslandsroadmap.org/mapping'>CGRI Assessment Map datashare V2</a>.
+                           Park Code is the 4-letter abbreviated park code.
+                           Network is the 4-letter abbreviated network code. Total acres are based on
+                           <a href='https://irma.nps.gov/DataStore/Reference/Profile/2314463'>
+                           Administrative Boundaries of National Park System Units</a>. 2024 Visitation represents
+                           the annual visitation recorded for a given park (note that not all parks have data),
+                           as downloaded from the National Park Service Visitor Use Statistics
+                           <a href='https://irma.nps.gov/Stats/SSRSReports/National%20Reports/Query%20Builder%20for%20Public%20Use%20Statistics%20(1979%20-%20Last%20Calendar%20Year)'>
+                           query builder</a>. Parks with vegetation monitoring by the Inventory and Monitoring Division are indicated
+                           by a 1 in the IMD Veg. Monitoring column. Long/Lat coordinates are in WGS84 and represent the park centroids.
+                           Columns can be filtered and sorted and data can be copied to clipboard, exported as csv, or printed.<br>"),
+                      br(),
                       div(DTOutput("prop_hab_dt",
-                                          height = "600px",
+                                          height = "480px",
                                           width = "90%")))),
       br()
     ) # end fluidRow

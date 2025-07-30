@@ -1,18 +1,19 @@
 #-------------------------------------------------------------------
 # Global file loads objects available to server and ui
 #-------------------------------------------------------------------
+# options(repos = "https://rspatial.r-universe.dev")
+#install.packages('quarto',
+#                 repos = c('https://quarto-dev.r-universe.dev', 'https://cloud.r-project.org'))
+#install.packages("terra", repos = "https://rspatial.r-universe.dev") # doesn't fail like CRAN
+#library(Rcpp) # for terra
+# # doesn't fail like CRAN
+
 library(sf)
 #library(raster)
 library(leaflet)
 library(tidyr)
 library(dplyr)
 
-# options(repos = "https://rspatial.r-universe.dev")
-# library(Rcpp) # for terra
-# install.packages("terra", repos = "https://rspatial.r-universe.dev") # doesn't fail like CRAN
-# install.packages('quarto',
-#                  repos = c('https://quarto-dev.r-universe.dev', 'https://cloud.r-project.org'))
-# # doesn't fail like CRAN
 
 sf::sf_use_s2(FALSE)
 #library(crosstalk)
@@ -30,7 +31,7 @@ head(nps_im)
 imveg_df <- read.csv(paste0(path2, "IMD_networks_with_upland_grassland_veg_monitoring.csv"))
 imveg_park <- sort(unique(imveg_df$Park))
 
-nps_im$IM_mon <- ifelse(nps_im$UNIT_CODE %in% imveg_park, 1, 0)
+nps_im$IM_veg_mon <- ifelse(nps_im$UNIT_CODE %in% imveg_park, 1, 0)
 
 #nps_bbox1 <- st_bbox(nps_im) * 1.01 # added 1% buffer
 nps_bbox <- data.frame(xmin = -113.16628, ymin = 29.38215,
@@ -67,7 +68,8 @@ names(park_prop_hab_wide) <- gsub("_hab", "", names(park_prop_hab_wide))
 head(data.frame(park_prop_hab_wide))
 
 park_prop_hab_wide2 <- left_join(park_prop_hab_wide,
-                                 nps_im_df[,c("UNIT_CODE", "UNIT_NAME", "long", "lat", "Recreation.Visits")],
+                                 nps_im_df[,c("UNIT_CODE", "UNIT_NAME", "long", "lat",
+                                              "Recreation.Visits", "IM_veg_mon")],
                                  by = c('UNIT_CODE')) |>
   mutate(pie_size1 = 2*sqrt(acres/sqrt(max(acres))),
          pie_size = ifelse(pie_size1 < 10, 10,
@@ -84,7 +86,7 @@ park_prop_hab_wide2 <- left_join(park_prop_hab_wide,
 # names(park_prop_hab_wide2)[names(park_prop_hab_wide2) == "UNIT_NA"] <- "UNIT_NAME"
 
 park_prop <- park_prop_hab_wide2[,c("UNIT_CODE", "UNIT_NAME", "NETCODE", "acres", "Recreation.Visits",
-                                    "prop_Core_Grassland", "prop_Vulnerable_Grasslands",
+                                    "IM_veg_mon", "prop_Core_Grassland", "prop_Vulnerable_Grasslands",
                                     "prop_Converted_Altered_Grasslands", "prop_Desert_Shrub",
                                     "prop_Forest", "prop_Developed", "prop_Water",
                                     "acres_Core_Grassland", "acres_Vulnerable_Grasslands",
