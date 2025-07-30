@@ -2,9 +2,9 @@
 # Global file loads objects available to server and ui
 #-------------------------------------------------------------------
 # options(repos = "https://rspatial.r-universe.dev")
-#install.packages('quarto',
+# install.packages('quarto',
 #                 repos = c('https://quarto-dev.r-universe.dev', 'https://cloud.r-project.org'))
-#install.packages("terra", repos = "https://rspatial.r-universe.dev") # doesn't fail like CRAN
+# install.packages("terra", repos = "https://rspatial.r-universe.dev") # doesn't fail like CRAN
 #library(Rcpp) # for terra
 # # doesn't fail like CRAN
 
@@ -17,18 +17,17 @@ library(dplyr)
 
 sf::sf_use_s2(FALSE)
 #library(crosstalk)
-path = "C:/NETN/R_Dev/centralGrasslands/data/GIS/"
-path2 <- "C:/NETN/R_Dev/centralGrasslands/data/"
+path = "./data/"
 # WGS 84 version of datasets
 nps_im1 <- st_read(paste0(path, "CGI_parks_network_wgs.shp")) |>
   filter(!UNIT_CODE %in% c("PECO", "WUPA"))
 nps_im1$acres <- nps_im1$area_m2/4046.863
 # add visitation data to nps_im
-vis <- read.csv(paste0(path2, 'NPS_Public_Use_Statistics_2024.csv'))
+vis <- read.csv(paste0(path, 'NPS_Public_Use_Statistics_2024.csv'))
 nps_im <- left_join(nps_im1, vis[,c("Code", "Recreation.Visits")], by = c("UNIT_CODE" = "Code"))
 head(nps_im)
 # add IM status
-imveg_df <- read.csv(paste0(path2, "IMD_networks_with_upland_grassland_veg_monitoring.csv"))
+imveg_df <- read.csv(paste0(path, "IMD_networks_with_upland_grassland_veg_monitoring.csv"))
 imveg_park <- sort(unique(imveg_df$Park))
 
 nps_im$IM_veg_mon <- ifelse(nps_im$UNIT_CODE %in% imveg_park, 1, 0)
@@ -46,8 +45,8 @@ nps_im_df <- data.frame(st_drop_geometry(nps_im))
 names(nps_im_df)[names(nps_im_df) == "UNIT_NA"] <- "UNIT_NAME"
 names(nps_im_df)[names(nps_im_df) == "UNIT_CO"] <- "UNIT_CODE"
 
-nps_im_1km <- st_read(paste0(path, "CGI_parks_network_1km_wgs.shp"))
-nps_im_10km <- st_read(paste0(path, "CGI_parks_network_10km_wgs.shp"))
+# nps_im_1km <- st_read(paste0(path, "CGI_parks_network_1km_wgs.shp"))
+# nps_im_10km <- st_read(paste0(path, "CGI_parks_network_10km_wgs.shp"))
 #cgr_ras <- raster::raster("./data/GIS/CGR_GAM_V2_WGS84.tif")
 
 #cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_WGS84.shp")
