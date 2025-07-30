@@ -2,11 +2,19 @@
 # Global file loads objects available to server and ui
 #-------------------------------------------------------------------
 library(sf)
-library(raster)
+#library(raster)
 library(leaflet)
 library(tidyr)
 library(dplyr)
-sf_use_s2(FALSE)
+
+# options(repos = "https://rspatial.r-universe.dev")
+# library(Rcpp) # for terra
+# install.packages("terra", repos = "https://rspatial.r-universe.dev") # doesn't fail like CRAN
+# install.packages('quarto',
+#                  repos = c('https://quarto-dev.r-universe.dev', 'https://cloud.r-project.org'))
+# # doesn't fail like CRAN
+
+sf::sf_use_s2(FALSE)
 #library(crosstalk)
 path = "C:/NETN/R_Dev/centralGrasslands/data/GIS/"
 path2 <- "C:/NETN/R_Dev/centralGrasslands/data/"
@@ -14,9 +22,15 @@ path2 <- "C:/NETN/R_Dev/centralGrasslands/data/"
 nps_im1 <- st_read(paste0(path, "CGI_parks_network_wgs.shp")) |>
   filter(!UNIT_CODE %in% c("PECO", "WUPA"))
 nps_im1$acres <- nps_im1$area_m2/4046.863
+# add visitation data to nps_im
 vis <- read.csv(paste0(path2, 'NPS_Public_Use_Statistics_2024.csv'))
 nps_im <- left_join(nps_im1, vis[,c("Code", "Recreation.Visits")], by = c("UNIT_CODE" = "Code"))
 head(nps_im)
+# add IM status
+imveg_df <- read.csv(paste0(path2, "IMD_networks_with_upland_grassland_veg_monitoring.csv"))
+imveg_park <- sort(unique(imveg_df$Park))
+
+nps_im$IM_mon <- ifelse(nps_im$UNIT_CODE %in% imveg_park, 1, 0)
 
 #nps_bbox1 <- st_bbox(nps_im) * 1.01 # added 1% buffer
 nps_bbox <- data.frame(xmin = -113.16628, ymin = 29.38215,
@@ -88,5 +102,5 @@ park_list <- sort(unique(nps_im_df$UNIT_CODE))
 cgr_bound <- st_read(paste0(path, "Grasslands_Roadmap_boundary_Aug_2021_WGS84.shp"))
 
 #cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_10km_WGS84_diss.shp")
-# cgr_ras <- terra::rast("./data/GIS/CGR_GAM_V2_park10km_extract.tif")
+
 

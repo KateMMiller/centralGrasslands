@@ -11,6 +11,7 @@
 #     cgr_shp |> filter(UNIT_CODE == input$park)
 #   })
 
+#install.packages('terra', repos='https://rspatial.r-universe.dev')
 
 output$CGIMap <- renderLeaflet({
   leaflet() %>%
