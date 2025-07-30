@@ -3,10 +3,6 @@ library(leaflet)
 library(htmltools)
 library(dplyr)
 library(shinyjs)
-library(htmltools)
-library(htmlwidgets)
-#library(leaflet.minicharts)
-#library(crosstalk)
 library(DT)
 
 shiny_server <- function(session, input, output){
@@ -136,8 +132,6 @@ shiny_server <- function(session, input, output){
       setView(lng = park_coords$long,
               lat = park_coords$lat,
               zoom = zoom_level)
-
-
   })
 
   # Reset view of map panel
