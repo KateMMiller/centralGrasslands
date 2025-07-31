@@ -1,3 +1,18 @@
+# park_react <- reactive({
+#   #req(input$park, input$network)
+#  if(input$network == "" & input$park == ""){park_prop
+#   } else if(!input$park == ""){park_prop[park_prop$UNIT_CODE %in% input$park,]
+#   } else if(!input$network == ""){park_prop[park_prop$NETCODE %in% input$network,]
+#   }
+# })
+#
+#   park_shp_react <- reactive({
+#     req(input$park)
+#     cgr_shp |> filter(UNIT_CODE == input$park)
+#   })
+
+#install.packages('terra', repos='https://rspatial.r-universe.dev')
+
 output$CGIMap <- renderLeaflet({
   leaflet() %>%
     setView(lng = cent[,1], lat = cent[,2], zoom = 5) %>%
