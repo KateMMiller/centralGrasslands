@@ -24,24 +24,21 @@ nps_cent_latlong <- data.frame(st_drop_geometry(nps_im_wgs_cent),
 nps_im_wgs2 <- left_join(nps_im_wgs, nps_cent_latlong[,c("UNIT_CODE", "long", "lat")],
                        by = c("UNIT_CODE"))
 
-st_write(nps_im_wgs2, "./data/GIS/CGI_parks_network_wgs.shp", append = FALSE)
+st_write(nps_im_wgs2, "./data/GIS/CGI_parks_network_wgs84.shp", append = FALSE)
 
 nps_im_1km_wgs <- st_transform(nps_im_1km, 4326)
-st_crs(nps_im_1km_wgs)
+#st_crs(nps_im_1km_wgs)
 st_write(nps_im_1km_wgs, "./data/GIS/CGI_parks_network_1km_wgs.shp", append = FALSE)
 #
 nps_im_10km_wgs <- st_transform(nps_im_10km, 4326)
 st_crs(nps_im_10km_wgs)
 st_write(nps_im_10km_wgs, "./data/GIS/CGI_parks_network_10km_wgs.shp", append = FALSE)
 
-<<<<<<< HEAD
 # Network boundaries
 nets <- st_read('./data/GIS/networks.shp') |> st_transform(4326)
 names(nets)[names(nets) == "NAME2_"] <- "NETNAME"
 st_write(nets, "./shiny/data/networks_wgs.shp", append = F)
 
-=======
->>>>>>> 88037bf5e0390dc1ca61e3d244a95032e5f90e67
 # cgr <- terra::rast("./data/GIS/CGR_GAM_V2.tif")
 # cgr_wgs <- terra::project(cgr, crs(nps_im_wgs), threads = 20)
 # terra::writeRaster(cgr_wgs, "./data/GIS/CGR_GAM_V2_WGS84.tif")
@@ -60,8 +57,9 @@ st_write(nets, "./shiny/data/networks_wgs.shp", append = F)
 cgr_border <- st_read("./data/GIS/Grasslands_Roadmap_boundary_Aug_2021.shp")
 cgr_border_wgs <- st_transform(cgr_border, 4326)
 st_write(cgr_border_wgs, "./data/GIS/Grasslands_Roadmap_boundary_Aug_2021_WGS84.shp", append = F)
+
 # Load WGS 84 version of datasets
-nps_im_wgs <- st_read("./data/GIS/CGI_parks_network_wgs.shp")
+nps_im_wgs <- st_read("./data/GIS/CGI_parks_network_wgs84.shp")
 nps_im_1km_wgs <- st_read("./data/GIS/CGI_parks_network_1km_wgs.shp")
 nps_im_10km_wgs <- st_read("./data/GIS/CGI_parks_network_10km_wgs.shp")
 
@@ -75,7 +73,7 @@ cgr_ras <- raster::raster("./data/GIS/CGR_GAM_V2_WGS84_compress.tif")
 # Instead, I did this in ArcPro for the 10km clip, then am dissolving
 # to make smaller file, joining with nps units, then transforming to wgs84.
 
-cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_UTM_NAD83_10km.shp")
+cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_UTM_NAD83_10km.shp") #+++ REDO THIS IN ARC EVERY park update
 cgr_shp_diss <- sf_dissolve(cgr_shp, y = "gridcode")
 cgr_shp_park <- st_join(cgr_shp_diss, nps_im_10km)
 cgr_shp_park2 <- st_transform(cgr_shp_park, 4326)
@@ -84,10 +82,6 @@ st_write(cgr_shp_park2, "./data/GIS/CGR_GAM_V2_10km_WGS84_diss.shp", append = F)
 
 cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_UTM_NAD83_10km.shp") |> st_transform(4326)
 st_write(cgr_shp, "./data/GIS/CGR_GAM_V2_WGS_10km.shp", append = F)
-<<<<<<< HEAD
-=======
-# ENDED HERE
->>>>>>> 88037bf5e0390dc1ca61e3d244a95032e5f90e67
 
 park_prop_hab <- read.csv("./data/CGR_parks_prop_habitat.csv")
 park_prop_hab_1km <- read.csv("./data/CGR_parks_prop_habitat_1km.csv")
@@ -137,7 +131,6 @@ nps_im <- st_read("./data/GIS/CGI_parks_network.shp")
 nps_im$area_m2 <- st_area(nps_im)
 nps_im$acres <- nps_im$area_m2/4046.863
 total_nps_acres_cgi <- sum(nps_im$acres, na.rm = T) #1,756,713 total acres in NPS lands
-pct_nps_lands <- (total_nps_acres_cgi/total_nps_acres)*100 # = 4.16%
-
+pct_nps_lands <- (total_nps_acres_cgi/total_nps_acres)*100 # = 2.98%
 
 
