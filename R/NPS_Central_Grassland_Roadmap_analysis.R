@@ -28,8 +28,11 @@ imd <- st_read("./data/GIS/networks.shp") |> st_transform(crs = 5070)
 names(imd)
 
 # Updated park list in ArcPro, because some got left off
-nps1 <- st_read("./data/GIS/CGI_parks_72_5070.shp") |> dplyr::select(-Acres)# Conus Albers NAD83
+nps1 <- st_read("./data/GIS/CGI_parks_72_5070.shp") |> dplyr::select(-Acres) |> # Conus Albers NAD83
+  dplyr::filter(!UNIT_CODE %in% "GLAC")
+
 names(nps1)
+sort(unique(nps1$UNIT_CODE))
 peri <- st_read("./data/GIS/PERI_5070.shp") |> dplyr::select(UNIT_CODE, UNIT_NAME, geometry)
 nps2 <- rbind(nps1, peri) # missed PERI in first batch
 
