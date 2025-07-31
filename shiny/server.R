@@ -199,8 +199,8 @@ shiny_server <- function(session, input, output){
                 class = 'cell-border stripe', rownames = FALSE,
                 extensions = c("FixedColumns", "Buttons"),
                 colnames = c("Park Code", #"Park Name",
-                             "Network", "Total acres",
-                             "2024 Visitation", "CGR Bound", "IMD Veg. Monitoring",
+                             "Network", "CGR Bound", "Total acres",
+                             "2024 Visitation",  "IMD Veg. Monitoring",
                              "% Core grassland", "% Vulnerable grassland",
                              "% Conv./alt. grassland", "% Desert/shrub",
                              "% Developed", "% Forest", "% Water",
@@ -223,8 +223,8 @@ shiny_server <- function(session, input, output){
                              fixedColumns = list(leftColumns = 1),
                              dom = "Blfrtip", buttons = c('copy', 'csv', 'print'),
                              columnDefs = list(#list(width = '200px', targets = 1),
-                               list(className = 'dt-center', targets = c(0:1, 4:20)),
-                               list(className = 'dt-right', targets = c(2:3)))
+                               list(className = 'dt-center', targets = c(0:2, 5:20)),
+                               list(className = 'dt-right', targets = c(3:4)))
                              ),
                            filter = list(position = c('top'), clear = FALSE)) %>%
         formatCurrency("acres", currency = "", mark = ",", digits = 1) %>%

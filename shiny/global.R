@@ -27,7 +27,7 @@ vis <- read.csv(paste0(path, 'NPS_Public_Use_Statistics_2024.csv'))
 nps_im <- left_join(nps_im1, vis[,c("Code", "Recreation.Visits")], by = c("UNIT_CODE" = "Code"))
 non_cgr_parks <- c("AZRU", "BAND", "BICA", "EFMO", "ELMA", "GLAC", "GRSA", "IATR", "NEPE",
                    "PECO", "PEFO", "PERI", "PETR", "VALL", "WUPA")
-nps_im$Non_CGR <- ifelse(nps_im$UNIT_CODE %in% non_cgr_parks, 1, 0)
+nps_im$CGR_park <- ifelse(nps_im$UNIT_CODE %in% non_cgr_parks, 0, 1)
 
 head(nps_im)
 
@@ -75,7 +75,7 @@ head(data.frame(park_prop_hab_wide))
 
 park_prop_hab_wide2 <- left_join(park_prop_hab_wide,
                                  nps_im_df[,c("UNIT_CODE", "UNIT_NAME", "long", "lat",
-                                              "Recreation.Visits", "IM_veg_mon", "Non_CGR")],
+                                              "Recreation.Visits", "IM_veg_mon", "CGR_park")],
                                  by = c('UNIT_CODE')) |>
   mutate(pie_size1 = 2*sqrt(acres/sqrt(max(acres))),
          pie_size = ifelse(pie_size1 < 10, 10,
@@ -91,7 +91,7 @@ park_prop_hab_wide2 <- left_join(park_prop_hab_wide,
 
 # names(park_prop_hab_wide2)[names(park_prop_hab_wide2) == "UNIT_NA"] <- "UNIT_NAME"
 
-park_prop <- park_prop_hab_wide2[,c("UNIT_CODE", "UNIT_NAME", "NETCODE", "Non_CGR", "acres",
+park_prop <- park_prop_hab_wide2[,c("UNIT_CODE", "UNIT_NAME", "NETCODE", "CGR_park", "acres",
                                     "Recreation.Visits",
                                     "IM_veg_mon", "prop_Core_Grassland", "prop_Vulnerable_Grasslands",
                                     "prop_Converted_Altered_Grasslands", "prop_Desert_Shrub",

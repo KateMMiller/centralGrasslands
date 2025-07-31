@@ -100,11 +100,11 @@ park_prop_comb <- left_join(park_prop_comb1,
 # Identify non-CGR parks and make their prop data NA
 non_cgr_parks <- c("AZRU", "BAND", "BICA", "EFMO", "ELMA", "GLAC", "GRSA", "IATR", "NEPE",
                    "PECO", "PEFO", "PERI", "PETR", "VALL", "WUPA")
-park_prop_comb$Non_CGR <- ifelse(park_prop_comb$UNIT_CODE %in% non_cgr_parks, 1, 0)
+park_prop_comb$CGR_park <- ifelse(park_prop_comb$UNIT_CODE %in% non_cgr_parks, 0, 1)
 hab_cols <- c("prop_hab", "acres_hab", "prop_hab_1km",
               "acres_hab_1km", "prop_hab_10km", "acres_hab_10km")
 
-park_prop_comb[park_prop_comb$Non_CGR == 1, hab_cols] <- NA_real_
+park_prop_comb[park_prop_comb$Non_CGR == 0, hab_cols] <- NA_real_
 
 write.csv(park_prop_comb, "./data/GIS/CGR_parks_prop_habitat_all.csv")
 
