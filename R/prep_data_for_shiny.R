@@ -34,11 +34,14 @@ nps_im_10km_wgs <- st_transform(nps_im_10km, 4326)
 st_crs(nps_im_10km_wgs)
 st_write(nps_im_10km_wgs, "./data/GIS/CGI_parks_network_10km_wgs.shp", append = FALSE)
 
+<<<<<<< HEAD
 # Network boundaries
 nets <- st_read('./data/GIS/networks.shp') |> st_transform(4326)
 names(nets)[names(nets) == "NAME2_"] <- "NETNAME"
 st_write(nets, "./shiny/data/networks_wgs.shp", append = F)
 
+=======
+>>>>>>> 88037bf5e0390dc1ca61e3d244a95032e5f90e67
 # cgr <- terra::rast("./data/GIS/CGR_GAM_V2.tif")
 # cgr_wgs <- terra::project(cgr, crs(nps_im_wgs), threads = 20)
 # terra::writeRaster(cgr_wgs, "./data/GIS/CGR_GAM_V2_WGS84.tif")
@@ -81,6 +84,10 @@ st_write(cgr_shp_park2, "./data/GIS/CGR_GAM_V2_10km_WGS84_diss.shp", append = F)
 
 cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_UTM_NAD83_10km.shp") |> st_transform(4326)
 st_write(cgr_shp, "./data/GIS/CGR_GAM_V2_WGS_10km.shp", append = F)
+<<<<<<< HEAD
+=======
+# ENDED HERE
+>>>>>>> 88037bf5e0390dc1ca61e3d244a95032e5f90e67
 
 park_prop_hab <- read.csv("./data/CGR_parks_prop_habitat.csv")
 park_prop_hab_1km <- read.csv("./data/CGR_parks_prop_habitat_1km.csv")
@@ -131,5 +138,6 @@ nps_im$area_m2 <- st_area(nps_im)
 nps_im$acres <- nps_im$area_m2/4046.863
 total_nps_acres_cgi <- sum(nps_im$acres, na.rm = T) #1,756,713 total acres in NPS lands
 pct_nps_lands <- (total_nps_acres_cgi/total_nps_acres)*100 # = 4.16%
+
 
 
