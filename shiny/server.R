@@ -3,10 +3,6 @@ library(leaflet)
 library(htmltools)
 library(dplyr)
 library(shinyjs)
-library(htmltools)
-library(htmlwidgets)
-#library(leaflet.minicharts)
-#library(crosstalk)
 library(DT)
 
 shiny_server <- function(session, input, output){
@@ -50,6 +46,14 @@ shiny_server <- function(session, input, output){
   pal <- colorNumeric(c("white", "#728946", "#EDECE6", "#FBD82B", "#51284D", "black", "#E40013", "#37618D"),
                       c(0, 5, 7, 100, 500, 1000, 2000, 5000), na.color = 'transparent')
 
+  pal_net1 <- colorRampPalette(colors =
+                                c("#9EB39C", "#CECAB6", "#A99895", "#B8A096", "#455557",
+                                  "#7B8661", "#7bb5a2", "#446072", "#E0C9BC", "#908171",
+                                  "#77979C", "#644d3c", "#c6c97b", "#a7b39b", '#bec991',
+                                  "#5f8971", "#5a8b5d", "#488691", "#1F4976", "#E8B487"))
+
+  pal_net <- pal_net1(32)
+
   output$CGIMap <- renderLeaflet({
     leaflet() %>%
       # setView(lng = if(is.null(input$park)){cent[,1]} else {park_df()$long},
@@ -60,14 +64,19 @@ shiny_server <- function(session, input, output){
       addTiles(group = "Imagery", urlTemplate = ESRIimagery) %>%
       addTiles(group = "Topo", urlTemplate = ESRItopo) %>%
       addTiles(group = "NatGeo", urlTemplate = ESRINatGeo) %>%
+      addPolygons(data = networks, group = "IMD networks",
+                  color = pal_net, weight = 1, fillOpacity = 0.4,
+                  popup = paste0(networks$NETNAME, " Network (", networks$ALPHACODE, ")"),
+                  popupOptions = popupOptions(maxWidth ="100%", closeOnClick = TRUE)) %>%
+      addPolygons(data = cgr_bound, color = "#B5AF4D", fill = "#E3E3B3",
+                  opacity = 0.2,
+                  weight = 2.5, group = "CGR boundary") %>%
       addPolygons(data = nps_im, layerId = nps_im$UNIT_CO,
                   # lng = nps_im_df$long[nps_im_df$UNIT_CODE == input$park],
                   # lat = nps_im_df$lat[nps_im_df$UNIT_CODE == input$park],
                   color = "#33CB46", fill = NA, weight = 2,
                   group = 'CG parks') %>%
-      addPolygons(data = cgr_bound, color = "#B5AF4D", fill = "#E3E3B3",
-                  opacity = 0.2,
-                  weight = 2.5, group = "CGR boundary") %>%
+      hideGroup("IMD networks") %>%
       # addPolygons(data = park_shp_react(),
       #             fillColor = c("#51284D", "#728946", "#EDECE6",
       #                           "#E40013", "black", "#FBD82B", "#37618D"),
@@ -78,7 +87,8 @@ shiny_server <- function(session, input, output){
         map = ., position = "bottomleft",
         baseGroups = c("Map", "Imagery", "Topo", "NatGeo"),
         options = layersControlOptions(collapsed = F),
-        overlayGroups = c("CG parks", "CGR boundary"))
+        overlayGroups = c("CG parks", "CGR boundary", "IMD networks")) %>%
+     addScaleBar()
   })
 
   # Zoom to a park; first add invisible circle markers to zoom to centroid
@@ -136,8 +146,6 @@ shiny_server <- function(session, input, output){
       setView(lng = park_coords$long,
               lat = park_coords$lat,
               zoom = zoom_level)
-
-
   })
 
   # Reset view of map panel
@@ -146,8 +154,8 @@ shiny_server <- function(session, input, output){
 
     updateSelectizeInput(session, 'network',
                          choices = c("Choose a network" = "",
-                                     "CHDN", "GULN", "HTLN", "NGPN",
-                                     "ROMN", "SCPN", "SODN", "SOPN"))
+                                     "CHDN", "GLKN", "GRYN", "GULN", "HTLN", "NGPN",
+                                     "ROMN", "SCPN", "SODN", "SOPN", "UCBN"))
 
     updateSelectizeInput(session, 'park',
                          choices = c("Choose a park" = "",
@@ -163,18 +171,21 @@ shiny_server <- function(session, input, output){
 
   observeEvent(input$CGIMap_click, {
     point_click <- input$CGIMap_click
-    point.sf <- st_as_sf(data.frame(lng = point_click$lng, lat = point_click$lat),
+
+    point.sf <- st_as_sf(data.frame(lng = point_click$lng,
+                                    lat = point_click$lat),
                          coords = c("lng", "lat"), crs = 4326)
+
     nps_filt <- st_filter(nps_im, point.sf)
+
     content <-
     if(nrow(nps_filt) == 0){paste0("No park selected")
-      } else {paste0("Park Code: ", nps_filt$UNIT_CO, "<br>",
-                     "Park Name: ", nps_filt$UNIT_NA, "<br>",
+      } else {paste0("Park Code: ", nps_filt$UNIT_CODE, "<br>",
+                     "Park Name: ", nps_filt$UNIT_NAME, "<br>",
                      "Network: ", nps_filt$NETCODE, "<br>",
-                     "Total Acres: ", round(nps_filt$acres,1), "<br>")
+                     "Total Acres: ", round(nps_filt$acres, 1), "<br>")
       }
 
-    print(content)
     leafletProxy("CGIMap") %>%
       addPopups(lat = point_click$lat,
                 lng = point_click$lng,
@@ -183,12 +194,13 @@ shiny_server <- function(session, input, output){
   })
 
   output$prop_hab_dt <-
-    renderDataTable({
+    renderDT({
       datatable(park_prop2,
                 class = 'cell-border stripe', rownames = FALSE,
                 extensions = c("FixedColumns", "Buttons"),
                 colnames = c("Park Code", #"Park Name",
                              "Network", "Total acres",
+                             "2024 Visitation", "CGR Bound", "IMD Veg. Monitoring",
                              "% Core grassland", "% Vulnerable grassland",
                              "% Conv./alt. grassland", "% Desert/shrub",
                              "% Developed", "% Forest", "% Water",
@@ -205,16 +217,18 @@ shiny_server <- function(session, input, output){
                                "$(this.api().table().header()).css({'font-size': '11px'});",
                                "$(this.api().table().header()).css({'font-family': 'Arial'});",
                                "}"),
-                             pageLength = 28,
+                             pageLength = nrow(park_prop2),
                              autoWidth = FALSE, scrollX = '850px',
                              scrollY = '600px', scrollCollapse = TRUE,
                              fixedColumns = list(leftColumns = 1),
                              dom = "Blfrtip", buttons = c('copy', 'csv', 'print'),
                              columnDefs = list(#list(width = '200px', targets = 1),
-                               list(className = 'dt-center', targets = c(0, 2:17)))
+                               list(className = 'dt-center', targets = c(0:1, 4:20)),
+                               list(className = 'dt-right', targets = c(2:3)))
                              ),
                            filter = list(position = c('top'), clear = FALSE)) %>%
-          formatCurrency("acres",currency = "", mark = ",", digits = 1)},
+        formatCurrency("acres", currency = "", mark = ",", digits = 1) %>%
+        formatCurrency("Recreation.Visits", currency = "", mark = ",", digits = 1)},
         server = F)
 
   # cgr_shp_park <- reactive(
