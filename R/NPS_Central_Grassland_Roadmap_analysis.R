@@ -34,7 +34,6 @@ nps1 <- st_read("./data/GIS/CGI_parks_72_5070.shp") |> dplyr::select(-Acres) |> 
 names(nps1)
 sort(unique(nps1$UNIT_CODE))
 peri <- st_read("./data/GIS/PERI_5070.shp") |> dplyr::select(UNIT_CODE, UNIT_NAME, geometry)
-wupa <- st_read("./data/GIS/WUPA_5070.shp") |> dplyr::select(UNIT_CODE, UNIT_NAME, geometry)
 
 nps2 <- rbind(nps1, peri, wupa) # missed PERI and WUPA in first batch
 
