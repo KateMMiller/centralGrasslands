@@ -117,8 +117,8 @@ head(vis)
 # total visitation
 total_vis <- sum(vis$Recreation.Visits[-nrow(vis)], na.rm = T) #331,863,358
 # cgr park visitation
-cgr_vis <- sum(vis$Recreation.Visits[vis$CGI_Park == "X"], na.rm = T) #15,146,963
-pct_vis <- (cgr_vis/total_vis)*100 #4.56 % of annual visitation
+cgr_vis <- sum(vis$Recreation.Visits[vis$CGI_Park == "X"], na.rm = T) #15,367,168
+pct_vis <- (cgr_vis/total_vis)*100 #4.63 % of annual visitation
 
 #-- CGR by land --
 nps <- st_read("./data/GIS/NPS_boundary.shp") |> st_transform(5070)
