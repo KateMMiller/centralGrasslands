@@ -16,7 +16,7 @@ library(dplyr)
 
 
 sf::sf_use_s2(FALSE)
-#library(crosstalk)
+
 path = "./data/"
 #path = "./shiny/data/"
 # WGS 84 version of datasets
@@ -58,8 +58,8 @@ names(nps_im_df)[names(nps_im_df) == "UNIT_CO"] <- "UNIT_CODE"
 
 #cgr_shp <- st_read("./data/GIS/CGR_GAM_V2_WGS84.shp")
 park_prop_hab <- read.csv(paste0(path, "CGR_parks_prop_habitat_all.csv")) |>
-  select(X:acres_hab) |>  # dropping 1km and 10km for now
-  filter(!UNIT_CODE %in% c("PECO", "WUPA"))
+  dplyr::select(X:acres_hab) |>  # dropping 1km and 10km for now
+  dplyr::filter(!UNIT_CODE %in% c("PECO"))
 round_cols <- c("acres", "prop_hab", "acres_hab")#, "prop_hab_1km", "acres_hab_1km", "prop_hab_10km",
                 #"acres_hab_10km")
 
@@ -69,7 +69,7 @@ park_prop_hab$Habitat <- gsub(" ", "_", park_prop_hab$Habitat)
 
 park_prop_hab_wide <- park_prop_hab |> dplyr::select(UNIT_CODE:acres_hab) |>
   pivot_wider(names_from = Habitat, values_from = c(prop_hab, acres_hab)) |>
-  filter(!UNIT_CODE %in% c("PECO", "WUPA"))
+  filter(!UNIT_CODE %in% c("PECO"))
 names(park_prop_hab_wide) <- gsub("_hab", "", names(park_prop_hab_wide))
 head(data.frame(park_prop_hab_wide))
 
