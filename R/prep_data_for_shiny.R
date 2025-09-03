@@ -222,12 +222,12 @@ park_prop_wide2 <- left_join(nps_im2[,c("UNIT_CO", "UNIT_NA", "Network", "long",
 st_write(park_prop_wide2, "./data_final/GIS/NPS_units_in_CGI_20250903_WGS84.shp", append = F)
 
 park_prop_df <- data.frame(st_drop_geometry(park_prop_wide2)) |>
-  select(Unit_Code = UNIT_CO, Unit_Name = UNIT_NA, Network, Acres, CGR_park,
+  select(Unit_Code = UNIT_CO, Unit_Name = UNIT_NA, Network, CGR_park, Acres,
          Visitation_2024 = Recreation.Visits, IM_Veg_Mon,
          prop_Core_Grassland, prop_Vulnerable_Grasslands, prop_Converted_Altered_Grasslands,
-         prop_Desert_Shrub, prop_Forest, prop_Developed, prop_Water,
+         prop_Desert_Shrub, prop_Developed, prop_Forest, prop_Water,
          acres_Core_Grassland, acres_Vulnerable_Grasslands, acres_Converted_Altered_Grasslands,
-         acres_Desert_Shrub, acres_Forest, acres_Developed, acres_Water,
+         acres_Desert_Shrub, acres_Developed, acres_Forest, acres_Water,
          lat, long, zoom)
 
 write.csv(park_prop_df, "./data_final/CGR_parks_prop_habitat.csv")

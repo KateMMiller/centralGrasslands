@@ -9,15 +9,15 @@ shiny_server <- function(session, input, output){
 
   # park_react <- reactive({
   #   #req(input$park, input$network)
-  #  if(input$network == "" & input$park == ""){park_prop
-  #   } else if(!input$park == ""){park_prop[park_prop$UNIT_CODE %in% input$park,]
-  #   } else if(!input$network == ""){park_prop[park_prop$NETCODE %in% input$network,]
+  #  if(input$network == "" & input$park == ""){nps_im
+  #   } else if(!input$park == ""){nps_im[nps_im$Unit_Code %in% input$park,]
+  #   } else if(!input$network == ""){nps_im[nps_im$NETCODE %in% input$network,]
   #   }
   # })
 #
 #   park_shp_react <- reactive({
 #     req(input$park)
-#     cgr_shp |> filter(UNIT_CODE == input$park)
+#     cgr_shp |> filter(Unit_Code == input$park)
 #   })
 
   observeEvent(input$view_about, {
@@ -28,9 +28,9 @@ shiny_server <- function(session, input, output){
 
   output$park_df <- renderUI({
     parks2 <- ifelse(input$network %in% network_list,
-                     nps_im_df |> filter(NETCODE %in% input$network) |>
-                       dplyr::select(UNIT_CODE) |> unique() |> c(),
-                     nps_im_df |> dplyr:: select(UNIT_CODE))
+                     nps_im_df |> filter(Network %in% input$network) |>
+                       dplyr::select(Unit_Code) |> unique() |> c(),
+                     nps_im_df |> dplyr:: select(Unit_Code))
     selectizeInput(inputId = 'park',
                    label = h5("Zoom to a park"),
                    choices = c("Choose a park" = "",
@@ -42,6 +42,8 @@ shiny_server <- function(session, input, output){
   ESRIimagery <- "http://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
   ESRItopo <- "http://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
   ESRINatGeo <- "http://services.arcgisonline.com/arcgis/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}"
+
+  cgr_tile <- "/tiles/CGR_GAM_V2_tile.mbtiles"
 
   pal <- colorNumeric(c("white", "#728946", "#EDECE6", "#FBD82B", "#51284D", "black", "#E40013", "#37618D"),
                       c(0, 5, 7, 100, 500, 1000, 2000, 5000), na.color = 'transparent')
@@ -64,6 +66,7 @@ shiny_server <- function(session, input, output){
       addTiles(group = "Imagery", urlTemplate = ESRIimagery) %>%
       addTiles(group = "Topo", urlTemplate = ESRItopo) %>%
       addTiles(group = "NatGeo", urlTemplate = ESRINatGeo) %>%
+      addTiles(group = "CGR Assessment", urlTemplate = cgr_tile) %>%
       addPolygons(data = networks, group = "IMD networks",
                   color = pal_net, weight = 1, fillOpacity = 0.4,
                   popup = paste0(networks$NETNAME, " Network (", networks$ALPHACODE, ")"),
@@ -72,8 +75,8 @@ shiny_server <- function(session, input, output){
                   opacity = 0.2,
                   weight = 2.5, group = "CGR boundary") %>%
       addPolygons(data = nps_im, layerId = nps_im$UNIT_CO,
-                  # lng = nps_im_df$long[nps_im_df$UNIT_CODE == input$park],
-                  # lat = nps_im_df$lat[nps_im_df$UNIT_CODE == input$park],
+                  # lng = nps_im_df$long[nps_im_df$Unit_Code == input$park],
+                  # lat = nps_im_df$lat[nps_im_df$Unit_Code == input$park],
                   color = "#33CB46", fill = NA, weight = 2,
                   group = 'CG parks') %>%
       hideGroup("IMD networks") %>%
@@ -85,7 +88,7 @@ shiny_server <- function(session, input, output){
       # )
      addLayersControl(
         map = ., position = "bottomleft",
-        baseGroups = c("Map", "Imagery", "Topo", "NatGeo"),
+        baseGroups = c("Map", "Imagery", "Topo", "NatGeo", "CGR Assessment"),
         options = layersControlOptions(collapsed = F),
         overlayGroups = c("CG parks", "CGR boundary", "IMD networks")) %>%
      addScaleBar()
@@ -97,14 +100,14 @@ shiny_server <- function(session, input, output){
 
     leafletProxy("CGIMap") %>%
       addCircleMarkers(
-        data = park_prop,
+        data = nps_im,
         radius = 0,
         opacity = 0,
         fillOpacity = 0,
-        lng = park_prop$long,
-        lat = park_prop$lat,
-        layerId = park_prop$UNIT_CODE
-        #label = nps_im_df$UNIT_CODE,
+        lng = nps_im$long,
+        lat = nps_im$lat,
+        layerId = nps_im$Unit_Code
+        #label = nps_im_df$Unit_Code,
         # labelOptions = labelOptions(noHide = TRUE,
         #                             textOnly = TRUE,
         #                             direction = "bottom",
@@ -117,7 +120,7 @@ shiny_server <- function(session, input, output){
   observeEvent(input$parkZoom, {
     req(input$park)
 
-    park_selected <- park_prop[park_prop$UNIT_CODE == input$park,]
+    park_selected <- nps_im[nps_im$Unit_Code == input$park,]
 
     leafletProxy('CGIMap') %>%
       clearControls() %>%
@@ -125,20 +128,20 @@ shiny_server <- function(session, input, output){
       setView(
         lng =  park_selected$long,
         lat = park_selected$lat,
-        layerId = park_selected$UNIT_CODE,
+        layerId = park_selected$Unit_Code,
         zoom = park_selected$zoom)})
 
   # Set up zoom
   observeEvent(input$park, {
     req(input$park)
 
-    park_coords <- nps_im_df[nps_im_df$UNIT_CODE == input$park,]
+    park_coords <- nps_im_df[nps_im_df$Unit_Code == input$park,]
 
     zoom_level <- 10
 
     updateSelectizeInput(session, 'park',
                          choices = c("Choose a park" = "",
-                                     sort(nps_im_df$UNIT_CODE)))
+                                     sort(nps_im_df$Unit_Code)))
 
     leafletProxy('CGIMap') %>%
       #clearControls() %>%
@@ -154,8 +157,9 @@ shiny_server <- function(session, input, output){
 
     updateSelectizeInput(session, 'network',
                          choices = c("Choose a network" = "",
-                                     "CHDN", "GLKN", "GRYN", "GULN", "HTLN", "NGPN",
-                                     "ROMN", "SCPN", "SODN", "SOPN", "UCBN"))
+                                     network_list))
+                                     # "CHDN", "GLKN", "GRYN", "GULN", "HTLN", "NCPN", "NGPN",
+                                     # "ROMN", "SCPN", "SODN", "SOPN", "UCBN"))
 
     updateSelectizeInput(session, 'park',
                          choices = c("Choose a park" = "",
@@ -177,13 +181,20 @@ shiny_server <- function(session, input, output){
                          coords = c("lng", "lat"), crs = 4326)
 
     nps_filt <- st_filter(nps_im, point.sf)
+    nps_filt$IM_Veg_Mon <- ifelse(nps_filt$IM_Vg_M == 1, "Yes", "No")
 
     content <-
     if(nrow(nps_filt) == 0){paste0("No park selected")
-      } else {paste0("Park Code: ", nps_filt$UNIT_CODE, "<br>",
-                     "Park Name: ", nps_filt$UNIT_NAME, "<br>",
-                     "Network: ", nps_filt$NETCODE, "<br>",
-                     "Total Acres: ", round(nps_filt$acres, 1), "<br>")
+      } else {paste0("<b>Park Code: </b>", nps_filt$UNIT_CO, "<br>",
+                     "<b>Park Name: </b>", nps_filt$UNIT_NA, "<br>",
+                     "<b>Network: </b>", nps_filt$Network, "<br>",
+                     "<b>Total Acres: </b>", format(round(nps_filt$Acres, 1), big.mark = ","), "<br>",
+                     "<b>2024 Visitation: </b>", format(nps_filt$Rcrtn_V, big.mark = ","), "<br>",
+                     "<b>IMD Veg. Monitoring: </b>", nps_filt$IM_Veg_Mon, "<br>",
+                     "<b>% Core Grassland: </b>", nps_filt$prp_C_G, "<br>",
+                     "<b>% Vulnerable Grassland: </b>", nps_filt$prp_V_G, "<br>",
+                     "<b>% Converted/Altered Grassland: </b>", nps_filt$p_C_A_G, "<br>"
+                     )
       }
 
     leafletProxy("CGIMap") %>%
@@ -195,7 +206,7 @@ shiny_server <- function(session, input, output){
 
   output$prop_hab_dt <-
     renderDT({
-      datatable(park_prop2,
+      datatable(nps_im_df,
                 class = 'cell-border stripe', rownames = FALSE,
                 extensions = c("FixedColumns", "Buttons"),
                 colnames = c("Park Code", #"Park Name",
@@ -207,7 +218,7 @@ shiny_server <- function(session, input, output){
                              "Acres core", "Acres vulnerable",
                              "Acres conv./alt.", "Acres desert/shrub",
                              "Acres forest", "Acres developed",
-                             "Acres water", "Long", "Lat"#, "zoom"
+                             "Acres water", "Lat", "Long"#, "zoom"
                              ),
                options = list(
                               initComplete = htmlwidgets::JS(
@@ -217,7 +228,7 @@ shiny_server <- function(session, input, output){
                                "$(this.api().table().header()).css({'font-size': '11px'});",
                                "$(this.api().table().header()).css({'font-family': 'Arial'});",
                                "}"),
-                             pageLength = nrow(park_prop2),
+                             pageLength = nrow(nps_im2),
                              autoWidth = FALSE, scrollX = '850px',
                              scrollY = '600px', scrollCollapse = TRUE,
                              fixedColumns = list(leftColumns = 1),
@@ -227,8 +238,8 @@ shiny_server <- function(session, input, output){
                                list(className = 'dt-right', targets = c(3:4)))
                              ),
                            filter = list(position = c('top'), clear = FALSE)) %>%
-        formatCurrency("acres", currency = "", mark = ",", digits = 1) %>%
-        formatCurrency("Recreation.Visits", currency = "", mark = ",", digits = 1)},
+        formatCurrency("Acres", currency = "", mark = ",", digits = 1) %>%
+        formatCurrency("Visitation_2024", currency = "", mark = ",", digits = 1)},
         server = F)
 
   # cgr_shp_park <- reactive(

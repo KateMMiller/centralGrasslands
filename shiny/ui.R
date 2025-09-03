@@ -38,8 +38,9 @@ ui <- shinyUI(
                             inputId = 'network',
                             label = h5('Filter by network:'),
                             choices = c("Choose a network" = "",
-                                        "CHDN", "GLKN", "GRYN", "GULN", "HTLN", "NGPN",
-                                        "ROMN", "SCPN", "SODN", "SOPN", "UCBN"),
+                                        network_list),
+                                        # "CHDN", "GLKN", "GRYN", "GULN", "HTLN", "NCPN",
+                                        # "NGPN", "ROMN", "SCPN", "SODN", "SOPN", "UCBN"),
                             selected = NULL)),
 
                  tags$div(style = 'display:inlin-block',
