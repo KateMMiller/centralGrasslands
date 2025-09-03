@@ -109,7 +109,7 @@ park_ext3 <- full_join(park_ext2, cats, by = c("Category" = "ID"))
 names(park_ext3)
 
 # sum number of cells in each habitat type by park
-park_ext4 <- park_ext3 |> group_by(ID, Category, UNIT_CO, Network, IM_Mon = IM_gr__) |>
+park_ext4 <- park_ext3 |> group_by(ID, Category, UNIT_CO, Network, IM_Veg_Mon = IM_gr__) |>
   summarize(num_cells = n(), .groups = 'drop') |>
   filter(!is.na(ID))
 
@@ -127,7 +127,7 @@ park_ext7 <-
   pivot_longer(cols = 5:12, names_to = "Habitat_Type", values_to = "num_cells")
 } else {park_ext6 |> pivot_longer(cols = 5:12, names_to = "Habitat_Type", values_to = "num_cells") }
 
-park_ext8 <- park_ext7 |> group_by(UNIT_CODE = UNIT_CO, Network, Acres, IM_Mon) |>
+park_ext8 <- park_ext7 |> group_by(UNIT_CODE = UNIT_CO, Network, Acres, IM_Veg_Mon) |>
   mutate(total_cells = sum(num_cells, na.rm = T),
          prop_hab = (num_cells/total_cells)*100,
          acres_hab = (prop_hab/100) * Acres,
@@ -137,7 +137,7 @@ park_ext8 <- park_ext7 |> group_by(UNIT_CODE = UNIT_CO, Network, Acres, IM_Mon) 
 
 cats$ID <- as.character(cats$ID)
 park_ext9 <- left_join(park_ext8, cats, by = c("Habitat_Type" = "ID")) |>
-  select(UNIT_CODE = UNIT_CO, Network, IM_Mon, Acres, Habitat_Code = Habitat_Type,
+  select(UNIT_CODE = UNIT_CO, Network, IM_Veg_Mon, Acres, Habitat_Code = Habitat_Type,
          Habitat, prop_hab, acres_hab)
 
 # add column for parks that are 90% not in CGR
@@ -165,6 +165,7 @@ write.csv(park_ext9, "./data_final/CGR_parks_prop_habitat.csv")
 #-- Visitation statistics --
 # Data downloaded for all NPS units on 7/24/2024:
 # https://irma.nps.gov/Stats/SSRSReports/National%20Reports/Query%20Builder%20for%20Public%20Use%20Statistics%20(1979%20-%20Last%20Calendar%20Year)
+nps_im <- st_read("./data_final/GIS/NPS_units_in_CGI_20250827_WGS84.shp")
 park_prop_hab <- read.csv("./data_final/CGR_parks_prop_habitat.csv")
 vis <- read.csv('./data_final/NPS_Public_Use_Statistics_2024.csv')
 
@@ -187,4 +188,47 @@ nps_im$acres <- nps_im$area_m2/4046.863
 total_nps_acres_cgi <- sum(nps_im$acres, na.rm = T) #3,373,394 total acres in NPS lands
 pct_nps_lands <- (total_nps_acres_cgi/total_nps_acres)*100 # = 3.96%
 
+# add info to park data for shiny data.table
+nps_im2 <- left_join(nps_im, vis[,c("Code", "Recreation.Visits")], by = c("UNIT_CO" = "Code"))
+head(nps_im2)
+round_cols <- c("Acres", "prop_hab", "acres_hab")
+park_prop_hab[,round_cols] <- round(park_prop_hab[,round_cols], 1)
+park_prop_hab$Habitat <- gsub("/", "_", park_prop_hab$Habitat)
+park_prop_hab$Habitat <- gsub(" ", "_", park_prop_hab$Habitat)
+
+park_prop_wide <- park_prop_hab |> select(UNIT_CODE, IM_Veg_Mon, CGR_park, Habitat, prop_hab, acres_hab) |>
+  pivot_wider(names_from = Habitat, values_from = c(prop_hab, acres_hab))
+
+names(park_prop_wide) <- gsub("_hab", "", names(park_prop_wide))
+
+# Add leaflet zoom
+park_prop_wide2 <- left_join(nps_im2[,c("UNIT_CO", "UNIT_NA", "Network", "long", "lat", "Acres",
+                                        "Recreation.Visits")],
+                             park_prop_wide,
+                             by = c('UNIT_CO' = 'UNIT_CODE')) |>
+  mutate(#pie_size1 = 2*sqrt(Acres/sqrt(max(Acres))),
+         # pie_size = ifelse(pie_size1 < 10, 10,
+         #                   ifelse(pie_size1 > 35, 35, pie_size1)),
+         zoom = case_when(Acres > 100000 ~ 16,
+                          between(Acres, 50000, 100000) ~ 12,
+                          between(Acres, 10000, 50000) ~ 10,
+                          between(Acres, 5000,10000) ~ 7,
+                          between(Acres, 1000,5000) ~ 5,
+                          between(Acres, 500, 1000) ~ 3,
+                          between(Acres, 100, 500) ~ 2,
+                          Acres < 100 ~ 1)) |> #|> select(-pie_size1)
+  arrange(UNIT_CO)
+
+st_write(park_prop_wide2, "./data_final/GIS/NPS_units_in_CGI_20250903_WGS84.shp", append = F)
+
+park_prop_df <- data.frame(st_drop_geometry(park_prop_wide2)) |>
+  select(Unit_Code = UNIT_CO, Unit_Name = UNIT_NA, Network, Acres, CGR_park,
+         Visitation_2024 = Recreation.Visits, IM_Veg_Mon,
+         prop_Core_Grassland, prop_Vulnerable_Grasslands, prop_Converted_Altered_Grasslands,
+         prop_Desert_Shrub, prop_Forest, prop_Developed, prop_Water,
+         acres_Core_Grassland, acres_Vulnerable_Grasslands, acres_Converted_Altered_Grasslands,
+         acres_Desert_Shrub, acres_Forest, acres_Developed, acres_Water,
+         lat, long, zoom)
+
+write.csv(park_prop_df, "./data_final/CGR_parks_prop_habitat.csv")
 
