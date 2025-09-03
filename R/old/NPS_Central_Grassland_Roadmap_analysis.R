@@ -10,53 +10,27 @@
 #---- Load libraries ----
 library(tidyverse)
 library(sf)
-library(raster)
-#library(terra)
+#library(raster)
+library(terra)
 library(tmap)
 options(scipen = 100)
-sf_use_s2(FALSE)
+#sf_use_s2(FALSE)
 
-#---- Part 1: Identify parks within CGR boundary ----
-# # Determining parks that are within the central grassland roadmap boundary
-# # Read in NPS boundary layer downloaded from IRMA on 7/22/2025
-# nps <- st_read("./data/GIS/nps_boundary.shp") |> st_transform(5070) # Conus Albers NAD83
-# st_crs(nps)
-# nps$area_m2 <- st_area(nps)
+#---- Part 1: Polygon of parks in CGI ----
+# prep_data_for_shiny.R script contains the various rasters and shapefiles to
+# compile the main datasets for spatial analysis
+nps_im <- vect("./data_final/GIS/NPS_units_in_CGI_20250827_WGS84.shp")
+st_crs(nps_im)
 
-# Read in network boundaries and transform to nps
-imd <- st_read("./data/GIS/networks.shp") |> st_transform(crs = 5070)
-names(imd)
+nps_im$area_ha <- round(expanse(nps_im, unit = "ha"), 2)
+nps_im$area_acres <- round(nps_im$area_ha * 2.47105, 1)
+head(nps_im)
 
-# Updated park list in ArcPro, because some got left off
-nps1 <- st_read("./data/GIS/CGI_parks_72_5070.shp") |> dplyr::select(-Acres) |> # Conus Albers NAD83
-  dplyr::filter(!UNIT_CODE %in% "GLAC")
-
-names(nps1)
-sort(unique(nps1$UNIT_CODE))
-peri <- st_read("./data/GIS/PERI_5070.shp") |> dplyr::select(UNIT_CODE, UNIT_NAME, geometry)
-
-nps2 <- rbind(nps1, peri, wupa) # missed PERI and WUPA in first batch
-
-st_crs(nps2)
-nps2$area_m2 <- round(st_area(nps2), 2)
-st_crs(nps2) == st_crs(imd)
-
-#nps <- nps1 |> filter(!UNIT_CODE %in% c("BICA", "PECO", "JELA", "WUPA", "SAGU", "MISS"))
-
-nps_im <- st_join(nps2, imd) |>
-  dplyr::select(UNIT_CODE, UNIT_NAME, area_m2, NETWORK = NAME2_, NETCODE = ALPHACODE)|>
-  filter(!(UNIT_CODE == "NEPE" & NETCODE == "ROMN")) # not in ROMN
-
+#++++ ENDED HERE ++++ PROCESSING FILES IN PREP_DATA_FOR_SHINY (change that to analysis).
 #-- Read in central grasslands tif and shapefile and reproject to match nps.
-#-- Only need to do this once; commented out because slow and don't want to
-#   accidentally run it again. --
-# cgr_ras <- terra::rast("./data/GIS/CGR_GAM_V2.tif")
-# cgr_ras83 <- terra::project(cgr_ras, crs(nps), threads = 20)
-# crs(cgr_ras83)
-# terra::writeRaster(cgr_ras83, "./data/GIS/CGR_GAM_V2_UTMNAD83.tif")
-
-cgr_ras <- terra::rast("./data/GIS/CGR_GAM_V2_UTM_NAD83.tif")
-
+cgr_ras1 <- terra::rast("./data_final/GIS/CGR_GAM_V2_WGS84.tif")
+cgr_ras <- terra::project(cgr_ras1, "EPSG:4326")
+terra::writeRaster(cgr_ras, "./data_final/GIS/CGR_GAM_V2_WGS84.tif", overwrite = TRUE)
 # DIDN'T ACTUALLY USE THE CODE BELOW- had to use ArcPro
 
 # cgr_shp <- st_read("./data/GIS/Grasslands_Roadmap_boundary_Aug_2021.shp") |>
