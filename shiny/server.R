@@ -66,7 +66,7 @@ shiny_server <- function(session, input, output){
       addTiles(group = "Imagery", urlTemplate = ESRIimagery) %>%
       addTiles(group = "Topo", urlTemplate = ESRItopo) %>%
       addTiles(group = "NatGeo", urlTemplate = ESRINatGeo) %>%
-      addTiles(group = "CGR Assessment", urlTemplate = cgr_tile) %>%
+      #addTiles(group = "CGR Assessment", urlTemplate = cgr_tile) %>%
       addPolygons(data = networks, group = "IMD networks",
                   color = pal_net, weight = 1, fillOpacity = 0.4,
                   popup = paste0(networks$NETNAME, " Network (", networks$ALPHACODE, ")"),
@@ -88,7 +88,7 @@ shiny_server <- function(session, input, output){
       # )
      addLayersControl(
         map = ., position = "bottomleft",
-        baseGroups = c("Map", "Imagery", "Topo", "NatGeo", "CGR Assessment"),
+        baseGroups = c("Map", "Imagery", "Topo", "NatGeo"), #"CGR Assessment"),
         options = layersControlOptions(collapsed = F),
         overlayGroups = c("CG parks", "CGR boundary", "IMD networks")) %>%
      addScaleBar()
