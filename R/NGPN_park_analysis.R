@@ -50,10 +50,12 @@ ggplot(covpts, # |> filter(LifeForm == "Bare"),
 
 # https://www.andrewheiss.com/blog/2021/12/01/multilevel-models-panel-data-guide/
 # https://www.andrewheiss.com/blog/2021/11/08/beta-regression-guide/#4-zero-inflated-beta-regression-bayesian-style
+# Change this to 1 park at a time, so faster run time and easier to interpret.
+
 beta_invg_unit <- brm(
-  bf(pct_cov2 ~ year_std + Unit_Name + (1 + year_std|MacroPlot_Name) + (1|year_fac),
-     phi ~ year_std + Unit_Name + (1 + year_std|MacroPlot_Name) + (1|year_fac),
-     zi ~  year_std + Unit_Name + (1 + year_std|MacroPlot_Name) + (1|year_fac)),
+  bf(pct_cov2 ~ year_std * Unit_Name + (1 + year_std|MacroPlot_Name) + (1|year_fac),
+     phi ~ year_std * Unit_Name + (1 + year_std|MacroPlot_Name) + (1|year_fac),
+     zi ~  year_std * Unit_Name + (1 + year_std|MacroPlot_Name) + (1|year_fac)),
      data = invg,
      family = zero_inflated_beta(),
      chains = CHAINS, iter = ITER, warmup = WARMUP, file = "beta_invg_unit")
