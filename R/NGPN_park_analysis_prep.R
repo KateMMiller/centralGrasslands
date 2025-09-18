@@ -57,20 +57,19 @@ covpts3 <- left_join(covpts2, taxa, by = c("Symbol", "Unit_Name")) |>
 table(covpts3$LifeForm, covpts3$LifeForm_Name)
 
 covpts_tran <- covpts3 |>
-  select(MacroPlot_Name, year, month, doy, NumPtsTran, Transect) |> unique() |>
-  group_by(MacroPlot_Name, year, month, doy) |>
+  select(MacroPlot_Name, year, month, doy, NumPtsTran, Transect, vegtype) |> unique() |>
+  group_by(MacroPlot_Name, year, month, doy, vegtype) |>
   summarize(num_points = sum(NumPtsTran), .groups = 'drop')
 
-
 # Summarize by lifeform, given that sometime multiple species of a lifeform are recorded in a point
-covpts4 <- left_join(covpts3, covpts_tran, by = c("MacroPlot_Name", "year", "month", "doy")) |>
-  group_by(MacroPlot_Name, Unit_Name, year, month, doy, num_points, LifeForm, Transect, Tape) |>
+covpts4 <- left_join(covpts3, covpts_tran, by = c("MacroPlot_Name", "year", "month", "doy", "vegtype")) |>
+  group_by(MacroPlot_Name, vegtype, Unit_Name, year, month, doy, num_points, LifeForm, Transect, Tape) |>
   summarize(num_hits = sum(!is.na(Point)),
             point_hit = ifelse(num_hits > 0, 1, 0),
             .groups = 'drop')
 
 covpts5 <- covpts4 |>
-  group_by(MacroPlot_Name, Unit_Name, year, month, doy,
+  group_by(MacroPlot_Name, Unit_Name, vegtype, year, month, doy,
            num_points, LifeForm) |>
   summarize(num_hits = sum(point_hit),
 #            pt_check = ifelse(num_hits > first(num_points), 1, 0),
@@ -116,8 +115,6 @@ covpts_sum$LifeForm_fac <-
   factor(covpts_sum$LifeForm,
          levels = c("Forb/herb", "Graminoid", "Graminoid - Inv.", "Subshrub", "Shrub", "Tree", "Vine",
                     "Bare", "Litter", "Nonvascular", "Other Non-Bio", "Undefined"))
-
-#plot_point_lf <-
 ggplot(covpts_sum,
        aes(x = year, y = mean_cov,
            group = LifeForm_fac, color = LifeForm_fac,
@@ -131,4 +128,130 @@ ggplot(covpts_sum,
   theme_bw() + labs(x = NULL, y = "Mean % Cover") +
   theme(legend.position = "bottom")
 
-#
+# Species diversity metrics
+spprich1 <- covpts3 |>
+  mutate(LifeForm = case_when(NotBiological == TRUE & Symbol == "BARE" ~ "Bare",
+                              NotBiological == TRUE & Symbol == "LITT" ~ "Litter",
+                              NotBiological == TRUE & !Symbol %in% c("BARE", "LITT") ~ "Other Non-Bio",
+                              LifeForm_Name == "Graminoid" & Invasive == TRUE ~ "Graminoid - Inv.",
+                              LifeForm_Name == "Graminoid" & Invasive == FALSE ~ "Graminoid",
+                              TRUE ~ LifeForm_Name
+  ))
+
+# Point-level species richness vs. Plot-level species richness
+# plot level first
+spprich1$LifeForm[spprich1$Symbol %in% c("TRADE", "CUSCU")] <- "Forb/herb"
+table(spprich1$LifeForm, spprich1$LifeForm_Name)
+table(spprich1$LifeForm, useNA = 'always')
+
+spprich <- spprich1 |>
+  filter(NumPtsTran == 50) |>
+  filter(NumTran == 2) |>
+  filter(NotBiological == FALSE) |> # plants only
+  select(MacroPlot_Name, Unit_Name, year, month, doy, Transect, Symbol, LifeForm) |>
+  distinct() |>
+  group_by(MacroPlot_Name, Unit_Name, year, month, doy, LifeForm) |>
+  summarize(numspp = sum(!is.na(Symbol)), .groups = 'drop') |>
+  group_by(MacroPlot_Name, Unit_Name, year, month, doy) |>
+  mutate(total_spp = sum(numspp))
+
+write.csv(spprich, "./data/NGPN_plot_level_spprich_by_lifeform.csv", row.names = F)
+
+# Within site diversity
+sppdiv_df <- spprich1 |>
+  mutate(present = 1,
+         tran_loc = paste0("T", Transect, "_", Tape)) |> arrange(Symbol) |>
+  select(MacroPlot_Name, Unit_Name, vegtype, year, month, doy, Symbol, NumTran,
+         TranLen, NumPtsTran, tran_loc, present) |>  distinct() |>
+  pivot_wider(names_from = Symbol, values_from = present, values_fill = 0) |>
+  arrange(MacroPlot_Name, year, doy, tran_loc)
+
+head(sppdiv_df)
+
+write.csv(sppdiv_df, "./data/NGPN_plot-level_diversity_data.csv", row.names = F)
+names(sppdiv_df)
+non_sppnames <- c("MacroPlot_Name", "Unit_Name", "vegtype", "year", "month",
+                  "doy", "NumTran", "TranLen", "NumPtsTran", "tran_loc" )
+sppnames <- names(sppdiv_df)[!names(sppdiv_df) %in% non_sppnames]
+sppdiv_df2 <- sppdiv_df |>
+  mutate(num_spp = rowSums(across(all_of(sppnames)))) |> data.frame()
+sppdiv_df2$plotid <- paste0(sppdiv_df2$MacroPlot_Name, "_", sppdiv_df2$year)
+sppdiv_df3 <- sppdiv_df2[,c("plotid", "Unit_Name", "tran_loc", "num_spp", sppnames)]
+
+head(sppdiv_df3)
+plot_list <- sort(unique(sppdiv_df3$plotid))
+
+# Using each point intercept pair to assess heterogeniety within a plot, and will look at trends over time
+plot_jac <- purrr::map(plot_list,
+                       function(p){
+                         sppdiv1 <- sppdiv_df3 |> filter(plotid == p)
+                         nzspp <- names(sppdiv1[,sppnames])[colSums(sppdiv1[,sppnames]) != 0]
+                         sppdiv2 <- sppdiv1[,nzspp]
+                         jacdist <- vegdist(sppdiv2, method = "jaccard")
+                         jac_df <- data.frame(jac_mean = mean(jacdist),
+                                              jac_sd = sd(jacdist),
+                                              jac_min = min(jacdist),
+                                              jac_max = max(jacdist),
+                                              jac_u95 = quantile(jacdist, probs = 0.975),
+                                              jac_l95 = quantile(jacdist, probs = 0.025),
+                                              jac_n = nrow(sppdiv2)
+                                              )
+                       }, .progress = TRUE) |> list_rbind()
+
+# ENDED HERE.
+
+# div_sum <- div_test2 |>
+#   select(MacroPlot_Name, Unit_Name, year, month, all_of(sppnames)) |>
+#   summarize(veg_dist)
+
+
+
+jac <- vegdist(div_sum[,sppnames], method = "jaccard")
+head(test)
+
+# Plot trends
+ggplot(spprich, aes(x = year, y = numspp, group = MacroPlot_Name,
+                    color = LifeForm)) +
+  geom_point() + geom_line() + facet_wrap(~Unit_Name) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+# park level
+spprich_park <- spprich |> group_by(Unit_Name, year, LifeForm) |>
+  summarize(mean_rich = mean(numspp),
+            mean_rich_tot = mean(first(total_spp)),
+            .groups = 'drop')
+
+col_pal <- c("Forb/herb" = "#05e689", "Graminoid" = "#efdf00", "Graminoid - Inv." = "#C7381C",
+             "Subshrub" = "#9371B9", "Shrub" = "#386EC7", "Tree" = "#8A20A1", "Vine" = "#ff7f00",
+             "Nonvascular" = '#DFACFC')
+
+labels <- c("Forb/herb" = "Forb/herb", "Graminoid" = "Graminoid",
+            "Graminoid - Inv." = "Graminoid - Inv.", "Subshrub" = "Subshrub",
+            "Shrub" = "Shrub", "Tree" = "Tree", "Vine" = "Woody Vine",
+            "Nonvascular" = "Nonvascular")
+
+shps <- c("Forb/herb" = 19, "Graminoid" = 17, "Graminoid - Inv." = 15,
+          "Subshrub" = 18, "Shrub" = 15, "Tree" = 17,
+          "Vine" = 15, "Nonvascular" = 15)
+
+shpsz <- c("Forb/herb" = 2.5, "Graminoid" = 2.5, "Graminoid - Inv." = 2,
+           "Subshrub" = 3, "Shrub" = 2, "Tree" = 2.5,
+           "Vine" = 2, "Nonvascular" = 2)
+
+spprich_park$LifeForm_fac <-
+  factor(spprich_park$LifeForm,
+         levels = c("Forb/herb", "Graminoid", "Graminoid - Inv.", "Subshrub", "Shrub", "Tree", "Vine",
+                    "Nonvascular"))
+# Spp rich by life form
+  ggplot(spprich_park, aes(x = year, y = mean_rich,
+                           group = LifeForm_fac, color = LifeForm_fac,
+                           shape = LifeForm_fac, size = LifeForm_fac)) +
+  geom_point() + facet_wrap(~Unit_Name) +
+  scale_shape_manual(values = shps, name = "Life Form", labels = labels) +
+  scale_size_manual(values = shpsz,
+                    name = "Life Form", labels = labels) +
+  scale_color_manual(values = col_pal, name = "Life Form", labels = labels) +
+  geom_line(linewidth = 0.5) +
+  theme_bw() + labs(x = NULL, y = "Mean Species Richness") +
+  theme(legend.position = "bottom")
