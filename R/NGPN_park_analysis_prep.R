@@ -155,7 +155,7 @@ spprich <- spprich1 |>
   group_by(MacroPlot_Name, Unit_Name, year, month, doy) |>
   mutate(total_spp = sum(numspp))
 
-write.csv(spprich, "./data/NGPN_plot_level_spprich_by_lifeform.csv", row.names = F)
+write.csv(spprich, "./data_final/NGPN_plot_level_spprich_by_lifeform.csv", row.names = F)
 
 # Within site diversity
 sppdiv_df <- spprich1 |>
@@ -168,7 +168,7 @@ sppdiv_df <- spprich1 |>
 
 head(sppdiv_df)
 
-write.csv(sppdiv_df, "./data/NGPN_plot-level_diversity_data.csv", row.names = F)
+write.csv(sppdiv_df, "./data_final/NGPN_plot-level_diversity_data.csv", row.names = F)
 names(sppdiv_df)
 non_sppnames <- c("MacroPlot_Name", "Unit_Name", "vegtype", "year", "month",
                   "doy", "NumTran", "TranLen", "NumPtsTran", "tran_loc" )
@@ -180,41 +180,6 @@ sppdiv_df3 <- sppdiv_df2[,c("plotid", "Unit_Name", "tran_loc", "num_spp", sppnam
 
 head(sppdiv_df3)
 plot_list <- sort(unique(sppdiv_df3$plotid))
-
-# Using each point intercept pair to assess heterogeniety within a plot, and will look at trends over time
-plot_jac <- purrr::map(plot_list,
-                       function(p){
-                         sppdiv1 <- sppdiv_df3 |> filter(plotid == p)
-                         nzspp <- names(sppdiv1[,sppnames])[colSums(sppdiv1[,sppnames]) != 0]
-                         sppdiv2 <- sppdiv1[,nzspp]
-                         jacdist <- vegdist(sppdiv2, method = "jaccard")
-                         jac_df <- data.frame(jac_mean = mean(jacdist),
-                                              jac_sd = sd(jacdist),
-                                              jac_min = min(jacdist),
-                                              jac_max = max(jacdist),
-                                              jac_u95 = quantile(jacdist, probs = 0.975),
-                                              jac_l95 = quantile(jacdist, probs = 0.025),
-                                              jac_n = nrow(sppdiv2)
-                                              )
-                       }, .progress = TRUE) |> list_rbind()
-
-# ENDED HERE.
-
-# div_sum <- div_test2 |>
-#   select(MacroPlot_Name, Unit_Name, year, month, all_of(sppnames)) |>
-#   summarize(veg_dist)
-
-
-
-jac <- vegdist(div_sum[,sppnames], method = "jaccard")
-head(test)
-
-# Plot trends
-ggplot(spprich, aes(x = year, y = numspp, group = MacroPlot_Name,
-                    color = LifeForm)) +
-  geom_point() + geom_line() + facet_wrap(~Unit_Name) +
-  theme_bw() +
-  theme(legend.position = "none")
 
 # park level
 spprich_park <- spprich |> group_by(Unit_Name, year, LifeForm) |>
@@ -244,9 +209,9 @@ spprich_park$LifeForm_fac <-
          levels = c("Forb/herb", "Graminoid", "Graminoid - Inv.", "Subshrub", "Shrub", "Tree", "Vine",
                     "Nonvascular"))
 # Spp rich by life form
-  ggplot(spprich_park, aes(x = year, y = mean_rich,
-                           group = LifeForm_fac, color = LifeForm_fac,
-                           shape = LifeForm_fac, size = LifeForm_fac)) +
+ggplot(spprich_park, aes(x = year, y = mean_rich,
+                         group = LifeForm_fac, color = LifeForm_fac,
+                         shape = LifeForm_fac, size = LifeForm_fac)) +
   geom_point() + facet_wrap(~Unit_Name) +
   scale_shape_manual(values = shps, name = "Life Form", labels = labels) +
   scale_size_manual(values = shpsz,
@@ -255,3 +220,117 @@ spprich_park$LifeForm_fac <-
   geom_line(linewidth = 0.5) +
   theme_bw() + labs(x = NULL, y = "Mean Species Richness") +
   theme(legend.position = "bottom")
+
+
+# Using each point intercept pair to assess heterogeniety within a plot, and will look at trends over time
+# Within plot jaccard similarity. Using jaccard b/c works with binary and treats double 0s as different
+point_jac <- purrr::map(plot_list,
+                       function(p){
+                         sppdiv1 <- sppdiv_df3 |> filter(plotid == p)
+                         nzspp <- names(sppdiv1[,sppnames])[colSums(sppdiv1[,sppnames]) != 0]
+                         sppdiv2 <- sppdiv1[,nzspp]
+                         jacdist <- vegdist(sppdiv2, method = "jaccard")
+                         jac_df <- data.frame(plotid = p,
+                                              jac_mean = mean(jacdist),
+                                              jac_sd = sd(jacdist),
+                                              jac_min = min(jacdist),
+                                              jac_max = max(jacdist),
+                                              jac_u95 = quantile(jacdist, probs = 0.975),
+                                              jac_l95 = quantile(jacdist, probs = 0.025),
+                                              jac_n = nrow(sppdiv2)
+                                              )
+                       }, .progress = TRUE) |> list_rbind()
+
+point_jac$Unit_Name <- substr(point_jac$plotid, 1, 4)
+point_jac$year <- as.numeric(substr(point_jac$plotid, (nchar(point_jac$plotid) - 3), nchar(point_jac$plotid)))
+point_jac$Macropoint_Name <- substr(point_jac$plotid, 1, nchar(point_jac$plotid) - 5)
+point_jac <- point_jac[,c("Macropoint_Name", "Unit_Name", "year", "jac_mean", "jac_sd",
+                        "jac_min", "jac_max", "jac_u95", "jac_l95", "jac_n")]
+point_jac$year_fac <- as.factor(point_jac$year)
+point_jac$year_std <- point_jac$year - min(point_jac$year)
+
+write.csv(point_jac, "./data_final/NGPN_point-level_jaccard_similarity.csv", row.names = F)
+
+# plot-level jaccard
+spprich2 <- left_join(spprich1, covpts_tran, by = c("MacroPlot_Name", "year", "month", "doy", "vegtype"))
+spprich3 <- spprich2 |> group_by(MacroPlot_Name, Unit_Name, vegtype, year, month, doy, Symbol, num_points) |>
+  summarize(num_hits = sum(!is.na(Order)),
+            pct_cov = num_hits/first(num_points),
+            .groups = 'drop')
+range(spprich3$pct_cov)
+head(spprich3)
+
+plot_div <- spprich3 |> arrange(Symbol) |>
+  select(MacroPlot_Name, Unit_Name, vegtype, year, month, doy, Symbol, num_points, pct_cov) |>
+  distinct() |>
+  pivot_wider(names_from = Symbol, values_from = pct_cov, values_fill = 0) |>
+  arrange(MacroPlot_Name, year, doy)
+names(plot_div)
+non_spp_names <- c("MacroPlot_Name", "Unit_Name", "vegtype", "year", "month",
+                  "doy", "num_points")
+spp_names <- names(plot_div)[!names(plot_div) %in% non_spp_names]
+
+head(plot_div)
+park_list <- sort(unique(plot_div$Unit_Name))
+year_list <- sort(unique(plot_div$year))
+park_year <- expand.grid(park_list, year_list) |> arrange(Var1, Var2) |>
+  select(park = Var1, year = Var2)
+
+park_year <- data.frame(table(plot_div$Unit_Name, plot_div$year)) |>
+  filter(Freq > 0) |> select(park = Var1, year = Var2) |>
+  arrange(park, year)
+park_year[31,]
+p = "DETO"
+year = 2016
+
+name_plot1 <- function(df, num){
+  rep(plot_list[num], times = (nrow(df) - num))
+}
+
+name_plot2 <- function(df, num){
+  num2 = num + 1
+  plot_list[num2:nrow(df)]
+}
+park_year[31,]
+p = "DETO"; y = 2016
+
+plot_sim <- purrr::map2(park_year$park, park_year$year,
+  function(p, y){
+    df1 <- plot_div |> filter(Unit_Name == p) |> filter(year %in% y)
+    #print(head(df1))
+    plot_list <- unique(df1$MacroPlot_Name)
+    if(length(plot_list) > 1){
+        nzspp <- names(df1[,spp_names])[colSums(df1[,spp_names]) != 0]
+        df2 <- df1[,nzspp]
+        jacdist <- vegdist(df2, method = "jaccard", diag = F)
+        jacdf <- data.frame(jac = as.numeric(jacdist))
+
+        plot_col1 <- data.frame(col1 = lapply(1:nrow(df1), function(x){
+          name_plot1(df = df1, num = x)}) |> unlist())
+        plot_col2 <- data.frame(col2 = lapply(1:(nrow(df1)-1), function(x){
+          name_plot2(df = df1, num = x)}) |> unlist())
+
+        bcdist <- vegdist(df2, method = "bray")
+        braydf <- data.frame(bray = as.numeric(bcdist))
+
+        mat1 <- data.frame(Unit_Name = as.character(rep(p, nrow(plot_col1))),
+                           year = as.numeric(rep(y, nrow(plot_col1))),
+                           plot_col1 = plot_col1$col1,
+                           plot_col2 = plot_col2$col2,
+                           jaccard = jacdf$jac,
+                           bray = braydf$bray)
+        mat1
+        #print(head(mat1))
+      } else {
+        mat1 <- data.frame(Unit_Name = as.character(p),
+                           year = as.numeric(y),
+                           plot_col1 = as.character(plot_list),
+                           plot_col2 = NA_character_,
+                           jaccard = NA_real_,
+                           bray = NA_real_)
+        mat1
+                       }
+                            #bray = bcdist[lower.tri(bcdist, diag = T)])
+                        }, .progress = TRUE) |> list_rbind()
+
+write.csv(plot_sim, "./data_final/NGPN_plot-level_jaccard_similarity.csv", row.names = F)
